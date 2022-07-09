@@ -33,6 +33,7 @@ for %%I in (.) do SET FOLDER_NAME=%%~nxI
 
 @REM assume crate name is the same as the folder name
 SET CRATE_NAME=%FOLDER_NAME%
+echo CRATE_NAME
 
 @REM for those who name crates with-kebab-case
 SET CRATE_NAME_SNAKE_CASE=%FOLDER_NAME:-=_%
