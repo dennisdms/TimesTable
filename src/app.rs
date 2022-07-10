@@ -65,7 +65,7 @@ impl eframe::App for TimesCircleApp {
                     )
                     .clicked();
 
-                    ui.label(generate_title("Animation"));
+                    // ui.label(generate_title("Animation"));
 
                     ui.horizontal(|ui| {
                         if ui.button("▶").clicked() {
@@ -104,7 +104,7 @@ impl eframe::App for TimesCircleApp {
                     //     ui.add(egui::DragValue::new(&mut self.stroke).speed(0.1).max_decimals(2));
                     // });
 
-                    ui.label(generate_title("Style"));
+                    // ui.label(generate_title("Style"));
                     ui.horizontal(|ui| {
                         ui.label("Stroke");
                         if ui.button("-").clicked() {
@@ -142,7 +142,13 @@ impl eframe::App for TimesCircleApp {
 
                 let margin: f32 = 30.0;
 
-                let points = generate_points(self.num_points, center.1 - margin);
+                let radius = if center.1 < center.0 {
+                    center.1 - margin
+                } else {
+                    center.0 - margin
+                };
+
+                let points = generate_points(self.num_points, radius);
 
                 for i in 0..self.num_points {
                     let j = ((i as f32) * self.multiplier) as usize % self.num_points;
@@ -173,7 +179,7 @@ impl eframe::App for TimesCircleApp {
                         x: center.0,
                         y: center.1,
                     },
-                    center.1 - margin,
+                    radius,
                     Color32::TRANSPARENT,
                     Stroke::new(
                         self.stroke,
