@@ -22,17 +22,10 @@ impl Default for TimesCircleApp {
     }
 }
 
-// Remove this
-const MARGIN: f32 = 30.0;
-
 impl TimesCircleApp {
-    /// Called once before the first frame.
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customized the look at feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
-
-        // Load previous app state (if any).
-        // Note that you must enable the `persistence` feature for this to work.
 
         Default::default()
     }
@@ -40,7 +33,6 @@ impl TimesCircleApp {
 
 impl eframe::App for TimesCircleApp {
     /// Called each time the UI needs repainting, which may be many times per second.
-    /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let my_frame = egui::containers::Frame {
             fill: Color32::LIGHT_GRAY,
@@ -54,10 +46,17 @@ impl eframe::App for TimesCircleApp {
                         format!("{:.5} Mod {}", self.multiplier, self.num_points).as_str(),
                     ));
 
-                    ui.horizontal(|ui| {
-                        ui.label("Points");
-                        ui.add(egui::DragValue::new(&mut self.num_points).speed(1));
-                    });
+                    // ui.horizontal(|ui| {
+                    //     ui.label("Points");
+                    //     ui.add(egui::DragValue::new(&mut self.num_points).speed(1));
+                    // });
+
+                    ui.add(
+                        egui::Slider::new(&mut self.num_points, 0..=10000)
+                            .text("Times")
+                            .max_decimals(5),
+                    )
+                    .clicked();
 
                     ui.add(
                         egui::Slider::new(&mut self.multiplier, 0.0..=self.num_points as f32)
@@ -86,12 +85,18 @@ impl eframe::App for TimesCircleApp {
 
                     ui.horizontal(|ui| {
                         ui.label("Step Size");
+                        if ui.button("-").clicked() {
+                            self.step_size -= 0.01;
+                        }
                         ui.add(
                             egui::DragValue::new(&mut self.step_size)
                                 .speed(0.01)
                                 .min_decimals(2)
                                 .max_decimals(5),
                         );
+                        if ui.button("+").clicked() {
+                            self.step_size += 0.01;
+                        }
                     });
 
                     // ui.horizontal(|ui| {
@@ -102,11 +107,17 @@ impl eframe::App for TimesCircleApp {
                     ui.label(generate_title("Style"));
                     ui.horizontal(|ui| {
                         ui.label("Stroke");
+                        if ui.button("-").clicked() {
+                            self.stroke -= 0.1;
+                        }
                         ui.add(
                             egui::DragValue::new(&mut self.stroke)
                                 .speed(0.1)
                                 .max_decimals(2),
                         );
+                        if ui.button("+").clicked() {
+                            self.stroke += 0.1;
+                        }
                     });
 
                     ui.horizontal(|ui| {
@@ -129,7 +140,9 @@ impl eframe::App for TimesCircleApp {
                     (ctx.available_rect().max.y - ctx.available_rect().min.y) / 2.0,
                 );
 
-                let points = generate_points(self.num_points, center.1 - MARGIN);
+                let margin: f32 = 30.0;
+
+                let points = generate_points(self.num_points, center.1 - margin);
 
                 for i in 0..self.num_points {
                     let j = ((i as f32) * self.multiplier) as usize % self.num_points;
@@ -160,7 +173,7 @@ impl eframe::App for TimesCircleApp {
                         x: center.0,
                         y: center.1,
                     },
-                    center.1 - MARGIN,
+                    center.1 - margin,
                     Color32::TRANSPARENT,
                     Stroke::new(
                         self.stroke,
@@ -179,9 +192,10 @@ fn generate_title(title: &str) -> RichText {
     RichText::new(title).font(FontId::proportional(20.0))
 }
 
+// Generate the coordinates of the points on the circle
 fn generate_points(num_points: usize, radius: f32) -> Vec<Pos2> {
     let n: f32 = num_points as f32;
-    let mut points = Vec::with_capacity(num_points);
+    let mut points: Vec<Pos2> = Vec::with_capacity(num_points);
     let mut angle: f32 = std::f32::consts::PI;
     for _ in 0..num_points {
         let point = Pos2 {
@@ -189,7 +203,6 @@ fn generate_points(num_points: usize, radius: f32) -> Vec<Pos2> {
             y: radius * angle.sin(),
         };
         points.push(point);
-
         angle += std::f32::consts::TAU / n;
     }
     points
