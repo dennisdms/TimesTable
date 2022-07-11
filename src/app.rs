@@ -1,8 +1,10 @@
-use egui::{Color32, FontId, Pos2, RichText, Stroke, Ui};
+use egui::{Color32, FontId, Pos2, RichText, Stroke, Ui, Key};
 
 pub struct TimesCircleApp {
     paused: bool,
     center: (f32, f32),
+    offset: (f32, f32),
+    zoom: f32,
     num_points: usize,
     multiplier: f32,
     step_size: f32,
@@ -15,6 +17,8 @@ impl Default for TimesCircleApp {
         Self {
             paused: true,
             center: (0.0, 0.0),
+            offset: (0.0, 0.0),
+            zoom: 0.85,
             num_points: 500,
             multiplier: 2.0,
             step_size: 0.1,
@@ -99,9 +103,9 @@ impl TimesCircleApp {
     fn times_circle(&mut self, ui: &mut Ui) {
         // Calculate radius of circle from screen size
         let radius: f32 = if self.center.1 < self.center.0 {
-            self.center.1 - (self.center.1 / 12.0)
+            self.center.1 * self.zoom
         } else {
-            self.center.0 - (self.center.0 / 12.0)
+            self.center.0 * self.zoom
         };
 
         // Generate evenly spaced points around the circumference of a circle
@@ -114,8 +118,8 @@ impl TimesCircleApp {
 
             // Transform to world coords
             let p1 = Pos2 {
-                x: (points[i].x + self.center.0),
-                y: (points[i].y + self.center.1),
+                x: (points[i].x + self.center.0 + self.offset.0),
+                y: (points[i].y + self.center.1 + self.offset.0),
             };
             let p2 = Pos2 {
                 x: (points[j].x + self.center.0),
@@ -141,7 +145,7 @@ impl TimesCircleApp {
 }
 
 impl eframe::App for TimesCircleApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             // Calculate center of current screen
             self.center = (
@@ -152,6 +156,28 @@ impl eframe::App for TimesCircleApp {
             // Display options Ui
             self.options_ui(ui);
 
+            self.zoom += ctx.input().scroll_delta.y / 60.0;
+            if self.zoom < 0.0001 {
+                self.zoom = 0.0001;
+            }
+
+            if ctx.input().key_down(Key::ArrowLeft) {
+                self.offset.0 += 10.0;
+            }
+            if ctx.input().key_down(Key::ArrowRight) {
+                self.offset.0 -= 10.0;
+            }
+            if ctx.input().key_down(Key::ArrowUp) {
+                self.offset.1 += 10.0;
+            }
+            if ctx.input().key_down(Key::ArrowDown) {
+                self.offset.1 -= 10.0;
+            }
+
+            ui.label(format!("{}", ctx.input().scroll_delta.y));
+            ui.label(format!("{}", self.zoom));
+            ui.label(format!("{}", ctx.input().key_pressed(Key::ArrowLeft)));
+            // ui.label(format!("{}", frame.drag_window()));
             // If not paused, increment multiplier, request redraw and
             // Else, draw
             if !self.paused && self.multiplier < self.num_points as f32 && self.multiplier >= 0.0 {
