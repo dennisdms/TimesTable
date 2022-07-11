@@ -1,4 +1,4 @@
-use egui::{Color32, FontId, Pos2, RichText, Stroke, Ui, Key};
+use egui::{Color32, FontId, PointerButton, Pos2, RichText, Stroke, Ui};
 
 pub struct TimesCircleApp {
     paused: bool,
@@ -28,9 +28,33 @@ impl Default for TimesCircleApp {
     }
 }
 
+impl eframe::App for TimesCircleApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Update the current state of the app based on the user controls
+        self.controls(ctx);
+
+        // Paint Ui
+        self.ui(ctx);
+    }
+}
+
 impl TimesCircleApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         Default::default()
+    }
+
+    fn ui(&mut self, ctx: &egui::Context) {
+        if egui::CentralPanel::default()
+            .show(ctx, |ui| {
+                // Display options Ui
+                self.options_ui(ui);
+
+                // Paint times circle
+                self.times_circle(ui);
+            })
+            .response
+            .dragged()
+        {};
     }
 
     fn options_ui(&mut self, ui: &mut Ui) {
@@ -101,6 +125,13 @@ impl TimesCircleApp {
     }
 
     fn times_circle(&mut self, ui: &mut Ui) {
+        // If not paused, increment multiplier, request redraw and
+        // Else, draw
+        if !self.paused && self.multiplier < self.num_points as f32 && self.multiplier >= 0.0 {
+            self.multiplier += self.step_size;
+            ui.ctx().request_repaint();
+        }
+
         // Calculate radius of circle from screen size
         let radius: f32 = if self.center.1 < self.center.0 {
             self.center.1 * self.zoom
@@ -119,11 +150,11 @@ impl TimesCircleApp {
             // Transform to world coords
             let p1 = Pos2 {
                 x: (points[i].x + self.center.0 + self.offset.0),
-                y: (points[i].y + self.center.1 + self.offset.0),
+                y: (points[i].y + self.center.1 + self.offset.1),
             };
             let p2 = Pos2 {
-                x: (points[j].x + self.center.0),
-                y: (points[j].y + self.center.1),
+                x: (points[j].x + self.center.0) + self.offset.0,
+                y: (points[j].y + self.center.1) + self.offset.1,
             };
 
             // Draw line
@@ -134,60 +165,33 @@ impl TimesCircleApp {
         // Draw circle
         ui.painter().circle(
             Pos2 {
-                x: self.center.0,
-                y: self.center.1,
+                x: self.center.0 + self.offset.0,
+                y: self.center.1 + self.offset.1,
             },
             radius,
             Color32::TRANSPARENT,
             Stroke::new(self.stroke, self.color),
         );
     }
-}
 
-impl eframe::App for TimesCircleApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            // Calculate center of current screen
-            self.center = (
-                (ctx.available_rect().max.x - ctx.available_rect().min.x) / 2.0,
-                (ctx.available_rect().max.y - ctx.available_rect().min.y) / 2.0,
-            );
+    fn controls(&mut self, ctx: &egui::Context) {
+        // Calculate center of current screen
+        self.center = (
+            (ctx.available_rect().max.x - ctx.available_rect().min.x) / 2.0,
+            (ctx.available_rect().max.y - ctx.available_rect().min.y) / 2.0,
+        );
 
-            // Display options Ui
-            self.options_ui(ui);
+        // Calculate zoom
+        self.zoom += ctx.input().scroll_delta.y / 60.0;
+        if self.zoom < 0.0001 {
+            self.zoom = 0.0001;
+        }
 
-            self.zoom += ctx.input().scroll_delta.y / 60.0;
-            if self.zoom < 0.0001 {
-                self.zoom = 0.0001;
-            }
-
-            if ctx.input().key_down(Key::ArrowLeft) {
-                self.offset.0 += 10.0;
-            }
-            if ctx.input().key_down(Key::ArrowRight) {
-                self.offset.0 -= 10.0;
-            }
-            if ctx.input().key_down(Key::ArrowUp) {
-                self.offset.1 += 10.0;
-            }
-            if ctx.input().key_down(Key::ArrowDown) {
-                self.offset.1 -= 10.0;
-            }
-
-            ui.label(format!("{}", ctx.input().scroll_delta.y));
-            ui.label(format!("{}", self.zoom));
-            ui.label(format!("{}", ctx.input().key_pressed(Key::ArrowLeft)));
-            // ui.label(format!("{}", frame.drag_window()));
-            // If not paused, increment multiplier, request redraw and
-            // Else, draw
-            if !self.paused && self.multiplier < self.num_points as f32 && self.multiplier >= 0.0 {
-                self.multiplier += self.step_size;
-                ui.ctx().request_repaint();
-            }
-
-            // Paint times circle
-            self.times_circle(ui);
-        });
+        // Allow to drag circle around with mouse
+        if ctx.input().pointer.button_down(PointerButton::Primary) {
+            self.offset.0 += ctx.input().pointer.delta().x;
+            self.offset.1 += ctx.input().pointer.delta().y;
+        }
     }
 }
 
