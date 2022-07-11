@@ -10,6 +10,7 @@ pub struct TimesCircleApp {
     step_size: f32,
     stroke: f32,
     color: Color32,
+    background_color: Color32,
 }
 
 impl Default for TimesCircleApp {
@@ -24,11 +25,13 @@ impl Default for TimesCircleApp {
             step_size: 0.1,
             stroke: 0.3,
             color: Color32::from_rgb(0, 0, 0),
+            background_color: Color32::from_rgb(255, 255, 255),
         }
     }
 }
 
 impl eframe::App for TimesCircleApp {
+    // Called whenever frame needs to be redrawn, maybe several times a second
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Update the current state of the app based on the user controls
         self.controls(ctx);
@@ -44,17 +47,19 @@ impl TimesCircleApp {
     }
 
     fn ui(&mut self, ctx: &egui::Context) {
-        if egui::CentralPanel::default()
+        let my_frame = egui::containers::Frame {
+            fill: self.background_color,
+            ..Default::default()
+        };
+        egui::CentralPanel::default()
+            .frame(my_frame)
             .show(ctx, |ui| {
                 // Display options Ui
                 self.options_ui(ui);
 
                 // Paint times circle
                 self.times_circle(ui);
-            })
-            .response
-            .dragged()
-        {};
+            });
     }
 
     fn options_ui(&mut self, ui: &mut Ui) {
@@ -86,23 +91,31 @@ impl TimesCircleApp {
                 )
             });
 
-            // Light/Dark mode buttons
-            egui::widgets::global_dark_light_mode_buttons(ui);
+            // Color mode
+            ui.horizontal(|ui| {
+                ui.label("Color Mode");
+                ui.add(egui::SelectableLabel::new(false, "Monochrome"));
+            });
 
-            ui.label("Stroke");
             // Stroke width slider
             ui.horizontal(|ui| {
                 ui.add(
                     egui::Slider::new(&mut self.stroke, 0.0..=1.0)
-                        .text("Width")
+                        .text("Stroke Width")
                         .max_decimals(2),
                 )
             });
 
-            // Stroke Color picker
+            // Stroke color picker
             ui.horizontal(|ui| {
-                ui.label("Color");
+                ui.label("Stroke Color");
                 ui.color_edit_button_srgba(&mut self.color);
+            });
+
+            // Background color picker
+            ui.horizontal(|ui| {
+                ui.label("Background Color");
+                ui.color_edit_button_srgba(&mut self.background_color);
             });
 
             // Playback buttons
