@@ -1,7 +1,8 @@
-use egui::{Color32, FontId, Pos2, RichText, Stroke};
+use egui::{Color32, FontId, Pos2, RichText, Stroke, Ui};
 
 pub struct TimesCircleApp {
     paused: bool,
+    center: (f32, f32),
     num_points: usize,
     multiplier: f32,
     step_size: f32,
@@ -13,6 +14,7 @@ impl Default for TimesCircleApp {
     fn default() -> Self {
         Self {
             paused: true,
+            center: (0.0, 0.0),
             num_points: 500,
             multiplier: 2.0,
             step_size: 0.1,
@@ -24,178 +26,158 @@ impl Default for TimesCircleApp {
 
 impl TimesCircleApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        // This is also where you can customized the look at feel of egui using
-        // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
-
         Default::default()
+    }
+
+    fn options_ui(&mut self, ui: &mut Ui) {
+        egui::CollapsingHeader::new("Options").show(ui, |ui| {
+            // p Mod n text
+            let p_mod_n =
+                RichText::new(format!("{:.2} Mod {}", self.multiplier, self.num_points).as_str())
+                    .font(FontId::proportional(20.0));
+            ui.label(p_mod_n);
+
+            // Num points slider
+            ui.add(
+                egui::Slider::new(&mut self.num_points, 0..=10000)
+                    .text("Points")
+            )
+            .clicked();
+
+            // Multiplier slider
+            ui.add(
+                egui::Slider::new(&mut self.multiplier, 0.0..=self.num_points as f32)
+                    .text("Multiplier")
+                    .max_decimals(2),
+            )
+            .clicked();
+
+            // Playback buttons
+            ui.horizontal(|ui| {
+                if ui.button("▶").clicked() {
+                    self.paused = false;
+                }
+                if ui.button("■").clicked() {
+                    self.paused = true;
+                }
+
+                if ui
+                    .button(RichText::new("⏺").color(Color32::DARK_RED))
+                    .clicked()
+                {
+                    self.paused = false;
+                }
+            });
+
+            // Step size slider
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::Slider::new(&mut self.step_size, 0.0..=1.0)
+                        .text("Step Size")
+                        .max_decimals(3),
+                )
+                .clicked();
+            });
+
+            // Stroke slider
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::Slider::new(&mut self.stroke, 0.0..=1.0)
+                        .text("Sroke")
+                        .max_decimals(2),
+                )
+                .clicked();
+            });
+
+            // Color picker
+            ui.horizontal(|ui| {
+                ui.label("Color");
+                ui.color_edit_button_srgba(&mut self.color);
+            });
+        });
+    }
+
+    fn paint(&mut self, ui: &mut Ui) {
+        // Calculate radius of circle from screen size
+        let radius = if self.center.1 < self.center.0 {
+            self.center.1 - (self.center.1 / 12.0)
+        } else {
+            self.center.0 - (self.center.1 / 12.0)
+        };
+
+        // Calculate the coordinates of points around the circle
+        let points = generate_points(self.num_points, radius);
+
+        // Draw lines between points
+        for i in 0..self.num_points {
+            // Transform to world coordinates
+            let j = ((i as f32) * self.multiplier) as usize % self.num_points;
+            let p1 = Pos2 {
+                x: points[i].x + self.center.0,
+                y: points[i].y + self.center.1,
+            };
+            let p2 = Pos2 {
+                x: points[j].x + self.center.0,
+                y: points[j].y + self.center.1,
+            };
+
+            // Draw line
+            ui.painter().line_segment(
+                [p1, p2],
+                Stroke::new(
+                    self.stroke,
+                    Color32::from_rgb(
+                        self.color[0] as u8,
+                        self.color[1] as u8,
+                        self.color[2] as u8,
+                    ),
+                ),
+            );
+        }
+
+        // Draw circle
+        ui.painter().circle(
+            Pos2 {
+                x: self.center.0,
+                y: self.center.1,
+            },
+            radius,
+            Color32::TRANSPARENT,
+            Stroke::new(
+                self.stroke,
+                Color32::from_rgb(
+                    self.color[0] as u8,
+                    self.color[1] as u8,
+                    self.color[2] as u8,
+                ),
+            ),
+        );
     }
 }
 
 impl eframe::App for TimesCircleApp {
-    /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let my_frame = egui::containers::Frame {
-            fill: Color32::LIGHT_GRAY,
-            ..Default::default()
-        };
-        egui::CentralPanel::default()
-            .frame(my_frame)
-            .show(ctx, |ui| {
-                egui::CollapsingHeader::new("Options").show(ui, |ui| {
-                    ui.label(generate_title(
-                        format!("{:.5} Mod {}", self.multiplier, self.num_points).as_str(),
-                    ));
+        egui::CentralPanel::default().show(ctx, |ui| {
+            // Calculate center of current screen
+            self.center = (
+                (ctx.available_rect().max.x - ctx.available_rect().min.x) / 2.0,
+                (ctx.available_rect().max.y - ctx.available_rect().min.y) / 2.0,
+            );
 
-                    // ui.horizontal(|ui| {
-                    //     ui.label("Points");
-                    //     ui.add(egui::DragValue::new(&mut self.num_points).speed(1));
-                    // });
+            // Display options Ui
+            self.options_ui(ui);
 
-                    ui.add(
-                        egui::Slider::new(&mut self.num_points, 0..=10000)
-                            .text("Times")
-                            .max_decimals(5),
-                    )
-                    .clicked();
+            // If not paused, increment multiplier, request redraw and
+            // Else, draw
+            if !self.paused && self.multiplier < self.num_points as f32 && self.multiplier >= 0.0 {
+                self.multiplier += self.step_size;
+                ui.ctx().request_repaint();
+            }
 
-                    ui.add(
-                        egui::Slider::new(&mut self.multiplier, 0.0..=self.num_points as f32)
-                            .text("Times")
-                            .max_decimals(5),
-                    )
-                    .clicked();
-
-                    // ui.label(generate_title("Animation"));
-
-                    ui.horizontal(|ui| {
-                        if ui.button("▶").clicked() {
-                            self.paused = false;
-                        }
-                        if ui.button("■").clicked() {
-                            self.paused = true;
-                        }
-
-                        if ui
-                            .button(RichText::new("⏺").color(Color32::DARK_RED))
-                            .clicked()
-                        {
-                            self.paused = false;
-                        }
-                    });
-
-                    ui.horizontal(|ui| {
-                        ui.label("Step Size");
-                        if ui.button("-").clicked() {
-                            self.step_size -= 0.01;
-                        }
-                        ui.add(
-                            egui::DragValue::new(&mut self.step_size)
-                                .speed(0.01)
-                                .min_decimals(2)
-                                .max_decimals(5),
-                        );
-                        if ui.button("+").clicked() {
-                            self.step_size += 0.01;
-                        }
-                    });
-
-                    // ui.horizontal(|ui| {
-                    //     ui.label("Steps per second");
-                    //     ui.add(egui::DragValue::new(&mut self.stroke).speed(0.1).max_decimals(2));
-                    // });
-
-                    // ui.label(generate_title("Style"));
-                    ui.horizontal(|ui| {
-                        ui.label("Stroke");
-                        if ui.button("-").clicked() {
-                            self.stroke -= 0.1;
-                        }
-                        ui.add(
-                            egui::DragValue::new(&mut self.stroke)
-                                .speed(0.1)
-                                .max_decimals(2),
-                        );
-                        if ui.button("+").clicked() {
-                            self.stroke += 0.1;
-                        }
-                    });
-
-                    ui.horizontal(|ui| {
-                        ui.label("Color");
-                        ui.color_edit_button_srgba(&mut self.color);
-                    });
-                });
-
-                if !self.paused
-                    && self.multiplier < self.num_points as f32
-                    && self.multiplier >= 0.0
-                {
-                    self.multiplier += self.step_size;
-                    ui.ctx().request_repaint();
-                    // std::thread::sleep(std::time::Duration::from_millis(30));
-                }
-
-                let center: (f32, f32) = (
-                    (ctx.available_rect().max.x - ctx.available_rect().min.x) / 2.0,
-                    (ctx.available_rect().max.y - ctx.available_rect().min.y) / 2.0,
-                );
-
-                let margin: f32 = 30.0;
-
-                let radius = if center.1 < center.0 {
-                    center.1 - margin
-                } else {
-                    center.0 - margin
-                };
-
-                let points = generate_points(self.num_points, radius);
-
-                for i in 0..self.num_points {
-                    let j = ((i as f32) * self.multiplier) as usize % self.num_points;
-                    let p1 = Pos2 {
-                        x: points[i].x + center.0,
-                        y: points[i].y + center.1,
-                    };
-                    let p2 = Pos2 {
-                        x: points[j].x + center.0,
-                        y: points[j].y + center.1,
-                    };
-
-                    ui.painter().line_segment(
-                        [p1, p2],
-                        Stroke::new(
-                            self.stroke,
-                            Color32::from_rgb(
-                                self.color[0] as u8,
-                                self.color[1] as u8,
-                                self.color[2] as u8,
-                            ),
-                        ),
-                    );
-                }
-
-                ui.painter().circle(
-                    Pos2 {
-                        x: center.0,
-                        y: center.1,
-                    },
-                    radius,
-                    Color32::TRANSPARENT,
-                    Stroke::new(
-                        self.stroke,
-                        Color32::from_rgb(
-                            self.color[0] as u8,
-                            self.color[1] as u8,
-                            self.color[2] as u8,
-                        ),
-                    ),
-                );
-            });
+            // Paint times circle
+            self.paint(ui);
+        });
     }
-}
-
-fn generate_title(title: &str) -> RichText {
-    RichText::new(title).font(FontId::proportional(20.0))
 }
 
 // Generate the coordinates of the points on the circle
