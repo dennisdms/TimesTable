@@ -55,7 +55,12 @@ impl TimesCircleApp {
             .frame(my_frame)
             .show(ctx, |ui| {
                 // Display options Ui
-                self.options_ui(ui);
+                egui::Frame::popup(ui.style())
+                    .rounding(15.0)
+                    .stroke(Stroke::none())
+                    .show(ui, |ui| {
+                        egui::CollapsingHeader::new("Settings").show(ui, |ui| self.options_ui(ui));
+                    });
 
                 // Paint times circle
                 self.times_circle(ui);
@@ -63,77 +68,71 @@ impl TimesCircleApp {
     }
 
     fn options_ui(&mut self, ui: &mut Ui) {
-        egui::CollapsingHeader::new("Options").show(ui, |ui| {
-            // p Mod n text
-            let p_mod_n =
-                RichText::new(format!("{:.2} Mod {}", self.multiplier, self.num_points).as_str())
-                    .font(FontId::proportional(20.0));
-            ui.label(p_mod_n);
+        // p Mod n text
+        let p_mod_n =
+            RichText::new(format!("{:.2} Mod {}", self.multiplier, self.num_points).as_str())
+                .font(FontId::proportional(20.0));
+        ui.label(p_mod_n);
 
-            // Num points slider
-            ui.add(egui::Slider::new(&mut self.num_points, 0..=10000).text("Points"));
+        // Num points slider
+        ui.add(egui::Slider::new(&mut self.num_points, 0..=10000).text("Points"));
 
-            // Multiplier slider
-            ui.add(
-                egui::Slider::new(&mut self.multiplier, 0.0..=self.num_points as f32)
-                    .text("Multiplier")
-                    .min_decimals(1)
-                    .max_decimals(2),
-            );
+        // Multiplier slider
+        ui.add(
+            egui::Slider::new(&mut self.multiplier, 0.0..=self.num_points as f32)
+                .text("Multiplier")
+                .min_decimals(1)
+                .max_decimals(2),
+        );
 
-            // Step size slider
-            ui.horizontal(|ui| {
-                ui.add(
-                    egui::Slider::new(&mut self.step_size, 0.0..=1.0)
-                        .text("Step Size")
-                        .min_decimals(1)
-                        .max_decimals(3),
-                )
-            });
+        // Step size slider
+        ui.add(
+            egui::Slider::new(&mut self.step_size, 0.0..=1.0)
+                .text("Step Size")
+                .min_decimals(1)
+                .max_decimals(3),
+        );
 
-            // Color mode
-            ui.horizontal(|ui| {
-                ui.label("Color Mode");
-                ui.add(egui::SelectableLabel::new(false, "Monochrome"));
-            });
+        // Stroke width slider
+        ui.add(
+            egui::Slider::new(&mut self.stroke, 0.0..=1.0)
+                .text("Stroke Width")
+                .max_decimals(2),
+        );
 
-            // Stroke width slider
-            ui.horizontal(|ui| {
-                ui.add(
-                    egui::Slider::new(&mut self.stroke, 0.0..=1.0)
-                        .text("Stroke Width")
-                        .max_decimals(2),
-                )
-            });
+        // Color mode
+        ui.horizontal(|ui| {
+            ui.label("Color Mode");
+            ui.add(egui::SelectableLabel::new(false, "Monochrome"));
+        });
 
-            // Stroke color picker
-            ui.horizontal(|ui| {
-                ui.label("Stroke Color");
-                ui.color_edit_button_srgba(&mut self.color);
-            });
+        // Stroke color picker
+        ui.horizontal(|ui| {
+            ui.label("Stroke Color");
+            ui.color_edit_button_srgba(&mut self.color);
+        });
 
-            // Background color picker
-            ui.horizontal(|ui| {
-                ui.label("Background Color");
-                ui.color_edit_button_srgba(&mut self.background_color);
-            });
+        // Background color picker
+        ui.horizontal(|ui| {
+            ui.label("Background Color");
+            ui.color_edit_button_srgba(&mut self.background_color);
+        });
 
-            // Playback buttons
-            ui.horizontal(|ui| {
-                if ui.button("▶").clicked() {
-                    self.paused = false;
-                }
-                if ui.button("■").clicked() {
-                    self.paused = true;
-                }
+        // Playback buttons
+        ui.horizontal(|ui| {
+            if ui.button("▶").clicked() {
+                self.paused = false;
+            }
+            if ui.button("■").clicked() {
+                self.paused = true;
+            }
 
-                // if ui
-                //     .button(RichText::new("⏺").color(Color32::DARK_RED))
-                //     .clicked()
-                // {
-                //     self.paused = false;
-                // }
-            });
+            // if ui
+            //     .button(RichText::new("⏺").color(Color32::DARK_RED))
+            //     .clicked()
+            // {
+            //     self.paused = false;
+            // }
         });
     }
 
