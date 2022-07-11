@@ -38,11 +38,8 @@ impl TimesCircleApp {
             ui.label(p_mod_n);
 
             // Num points slider
-            ui.add(
-                egui::Slider::new(&mut self.num_points, 0..=10000)
-                    .text("Points")
-            )
-            .clicked();
+            ui.add(egui::Slider::new(&mut self.num_points, 0..=10000).text("Points"))
+                .clicked();
 
             // Multiplier slider
             ui.add(
