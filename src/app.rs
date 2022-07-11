@@ -68,12 +68,12 @@ impl TimesCircleApp {
                     self.paused = true;
                 }
 
-                if ui
-                    .button(RichText::new("⏺").color(Color32::DARK_RED))
-                    .clicked()
-                {
-                    self.paused = false;
-                }
+                // if ui
+                //     .button(RichText::new("⏺").color(Color32::DARK_RED))
+                //     .clicked()
+                // {
+                //     self.paused = false;
+                // }
             });
 
             // Light/Dark mode buttons
@@ -102,37 +102,30 @@ impl TimesCircleApp {
         let radius: f32 = if self.center.1 < self.center.0 {
             self.center.1 - (self.center.1 / 12.0)
         } else {
-            self.center.0 - (self.center.1 / 12.0)
+            self.center.0 - (self.center.0 / 12.0)
         };
 
-        // Calculate the coordinates of points around the circle
+        // Generate evenly spaced points around the circumference of a circle
         let points: Vec<Pos2> = generate_points(self.num_points, radius);
 
         // Draw lines between points
         for i in 0..self.num_points {
-            // Transform to world coordinates
+            // Find the point to connect to
             let j = ((i as f32) * self.multiplier) as usize % self.num_points;
+
+            // Transform to world coords
             let p1 = Pos2 {
-                x: points[i].x + self.center.0,
-                y: points[i].y + self.center.1,
+                x: (points[i].x + self.center.0),
+                y: (points[i].y + self.center.1),
             };
             let p2 = Pos2 {
-                x: points[j].x + self.center.0,
-                y: points[j].y + self.center.1,
+                x: (points[j].x + self.center.0),
+                y: (points[j].y + self.center.1),
             };
 
             // Draw line
-            ui.painter().line_segment(
-                [p1, p2],
-                Stroke::new(
-                    self.stroke,
-                    Color32::from_rgb(
-                        self.color[0] as u8,
-                        self.color[1] as u8,
-                        self.color[2] as u8,
-                    ),
-                ),
-            );
+            ui.painter()
+                .line_segment([p1, p2], Stroke::new(self.stroke, self.color));
         }
 
         // Draw circle
@@ -143,14 +136,7 @@ impl TimesCircleApp {
             },
             radius,
             Color32::TRANSPARENT,
-            Stroke::new(
-                self.stroke,
-                Color32::from_rgb(
-                    self.color[0] as u8,
-                    self.color[1] as u8,
-                    self.color[2] as u8,
-                ),
-            ),
+            Stroke::new(self.stroke, self.color),
         );
     }
 }
