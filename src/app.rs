@@ -38,8 +38,7 @@ impl TimesCircleApp {
             ui.label(p_mod_n);
 
             // Num points slider
-            ui.add(egui::Slider::new(&mut self.num_points, 0..=10000).text("Points"))
-                .clicked();
+            ui.add(egui::Slider::new(&mut self.num_points, 0..=10000).text("Points"));
 
             // Multiplier slider
             ui.add(
@@ -47,8 +46,7 @@ impl TimesCircleApp {
                     .text("Multiplier")
                     .min_decimals(1)
                     .max_decimals(2),
-            )
-            .clicked();
+            );
 
             // Step size slider
             ui.horizontal(|ui| {
@@ -58,7 +56,6 @@ impl TimesCircleApp {
                         .min_decimals(1)
                         .max_decimals(3),
                 )
-                .clicked();
             });
 
             // Light/Dark mode buttons
@@ -72,7 +69,6 @@ impl TimesCircleApp {
                         .text("Width")
                         .max_decimals(2),
                 )
-                .clicked();
             });
 
             // Stroke Color picker
