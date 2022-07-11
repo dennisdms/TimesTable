@@ -18,7 +18,7 @@ impl Default for TimesCircleApp {
             num_points: 500,
             multiplier: 2.0,
             step_size: 0.1,
-            stroke: 0.30,
+            stroke: 0.3,
             color: Color32::from_rgb(0, 0, 0),
         }
     }
@@ -45,6 +45,7 @@ impl TimesCircleApp {
             ui.add(
                 egui::Slider::new(&mut self.multiplier, 0.0..=self.num_points as f32)
                     .text("Multiplier")
+                    .min_decimals(1)
                     .max_decimals(2),
             )
             .clicked();
@@ -54,9 +55,30 @@ impl TimesCircleApp {
                 ui.add(
                     egui::Slider::new(&mut self.step_size, 0.0..=1.0)
                         .text("Step Size")
+                        .min_decimals(1)
                         .max_decimals(3),
                 )
                 .clicked();
+            });
+
+            // Light/Dark mode buttons
+            egui::widgets::global_dark_light_mode_buttons(ui);
+
+            ui.label("Stroke");
+            // Stroke width slider
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::Slider::new(&mut self.stroke, 0.0..=1.0)
+                        .text("Width")
+                        .max_decimals(2),
+                )
+                .clicked();
+            });
+
+            // Stroke Color picker
+            ui.horizontal(|ui| {
+                ui.label("Color");
+                ui.color_edit_button_srgba(&mut self.color);
             });
 
             // Playback buttons
@@ -74,25 +96,6 @@ impl TimesCircleApp {
                 // {
                 //     self.paused = false;
                 // }
-            });
-
-            // Light/Dark mode buttons
-            egui::widgets::global_dark_light_mode_buttons(ui);
-
-            // Stroke slider
-            ui.horizontal(|ui| {
-                ui.add(
-                    egui::Slider::new(&mut self.stroke, 0.0..=1.0)
-                        .text("Sroke")
-                        .max_decimals(2),
-                )
-                .clicked();
-            });
-
-            // Color picker
-            ui.horizontal(|ui| {
-                ui.label("Color");
-                ui.color_edit_button_srgba(&mut self.color);
             });
         });
     }
