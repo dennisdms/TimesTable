@@ -97,16 +97,16 @@ impl TimesCircleApp {
         });
     }
 
-    fn paint(&mut self, ui: &mut Ui) {
+    fn times_circle(&mut self, ui: &mut Ui) {
         // Calculate radius of circle from screen size
-        let radius = if self.center.1 < self.center.0 {
+        let radius: f32 = if self.center.1 < self.center.0 {
             self.center.1 - (self.center.1 / 12.0)
         } else {
             self.center.0 - (self.center.1 / 12.0)
         };
 
         // Calculate the coordinates of points around the circle
-        let points = generate_points(self.num_points, radius);
+        let points: Vec<Pos2> = generate_points(self.num_points, radius);
 
         // Draw lines between points
         for i in 0..self.num_points {
@@ -175,7 +175,7 @@ impl eframe::App for TimesCircleApp {
             }
 
             // Paint times circle
-            self.paint(ui);
+            self.times_circle(ui);
         });
     }
 }
