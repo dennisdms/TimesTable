@@ -49,6 +49,16 @@ impl TimesCircleApp {
             )
             .clicked();
 
+            // Step size slider
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::Slider::new(&mut self.step_size, 0.0..=1.0)
+                        .text("Step Size")
+                        .max_decimals(3),
+                )
+                .clicked();
+            });
+
             // Playback buttons
             ui.horizontal(|ui| {
                 if ui.button("▶").clicked() {
@@ -66,15 +76,8 @@ impl TimesCircleApp {
                 }
             });
 
-            // Step size slider
-            ui.horizontal(|ui| {
-                ui.add(
-                    egui::Slider::new(&mut self.step_size, 0.0..=1.0)
-                        .text("Step Size")
-                        .max_decimals(3),
-                )
-                .clicked();
-            });
+            // Light/Dark mode buttons
+            egui::widgets::global_dark_light_mode_buttons(ui);
 
             // Stroke slider
             ui.horizontal(|ui| {
