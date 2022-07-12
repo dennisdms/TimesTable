@@ -1,11 +1,12 @@
-use egui::{Align2, Color32, FontId, PointerButton, Pos2, RichText, Stroke, TextBuffer, Ui};
+use egui::{Align2, Color32, FontId, PointerButton, Pos2, RichText, Stroke, Ui};
 
+// TODO Group relates options together into structs
 pub struct TimesCircleApp {
-    paused: bool,
     first_frame: bool,
-    center: (f32, f32),
-    offset: (f32, f32),
-    zoom: f32,
+    paused: bool,
+    center: (f32, f32), // TODO center and offset can probably be combined
+    offset: (f32, f32), 
+    zoom: f32, // TODO zoom and rotation can probably be combined
     rotation: f32,
     num_points: usize,
     multiplier: f32,
@@ -13,13 +14,14 @@ pub struct TimesCircleApp {
     stroke: f32,
     color: Color32,
     background_color: Color32,
+    color_mode: String, // TODO turn color mode into enum or struct or something
 }
 
 impl Default for TimesCircleApp {
     fn default() -> Self {
         Self {
-            paused: true,
             first_frame: true,
+            paused: true,
             center: (0.0, 0.0),
             offset: (0.0, 0.0),
             zoom: 0.85,
@@ -30,6 +32,7 @@ impl Default for TimesCircleApp {
             stroke: 0.3,
             color: Color32::from_rgb(0, 0, 0),
             background_color: Color32::from_rgb(255, 255, 255),
+            color_mode: "Monochrome".to_string(),
         }
     }
 }
@@ -37,14 +40,27 @@ impl Default for TimesCircleApp {
 impl eframe::App for TimesCircleApp {
     // Called whenever frame needs to be redrawn, maybe several times a second
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Paint Ui
         self.ui(ctx);
     }
 }
 
 impl TimesCircleApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        Default::default()
+        TimesCircleApp {
+            first_frame: true,
+            paused: true,
+            center: (0.0, 0.0),
+            offset: (0.0, 0.0),
+            zoom: 0.85,
+            rotation: std::f32::consts::PI,
+            num_points: 500,
+            multiplier: 2.0,
+            step_size: 0.1,
+            stroke: 0.3,
+            color: Color32::from_rgb(0, 0, 0),
+            background_color: Color32::from_rgb(255, 255, 255),
+            color_mode: "Monochrome".to_string(),
+        }
     }
 
     fn ui(&mut self, ctx: &egui::Context) {
@@ -56,7 +72,7 @@ impl TimesCircleApp {
             .frame(my_frame)
             .show(ctx, |ui| {
                 // Display options Ui
-                egui::Window::new("Settings".as_str())
+                egui::Window::new("Settings")
                     .collapsible(true)
                     .auto_sized()
                     .anchor(Align2::LEFT_TOP, [10.0, 10.0])
@@ -73,11 +89,19 @@ impl TimesCircleApp {
                     self.first_frame = false;
                 }
 
+                // Handle multitouch gestures for mobile
                 if let Some(multi_touch) = ui.ctx().multi_touch() {
-                    self.zoom *= multi_touch.zoom_delta;
+                    self.zoom *= multi_touch.zoom_delta; // Pull into multitouch control function?
                     self.offset.0 += multi_touch.translation_delta.x;
                     self.offset.1 += multi_touch.translation_delta.y;
                     self.rotation += multi_touch.rotation_delta;
+                }
+
+                // If not paused, increment multiplier, request redraw and
+                // Else, draw
+                if !self.paused && self.multiplier < self.num_points as f32 && self.multiplier >= 0.0 {
+                    self.multiplier += self.step_size;
+                    ui.ctx().request_repaint();
                 }
 
                 // Paint times circle
@@ -121,7 +145,16 @@ impl TimesCircleApp {
         // Color mode
         ui.horizontal(|ui| {
             ui.label("Color Mode");
-            ui.add(egui::SelectableLabel::new(false, "Monochrome"));
+            if ui.selectable_label(false, self.color_mode.clone()).clicked() {
+                let color_mode: String = if self.color_mode == "Monochrome" {
+                    "Length".to_string()
+                } else if self.color_mode == "Length" {
+                    "Radial".to_string()
+                } else {
+                    "Monochrome".to_string()
+                };
+                self.color_mode = color_mode;
+            };
         });
 
         // Stroke color picker
@@ -159,13 +192,6 @@ impl TimesCircleApp {
     }
 
     fn times_circle(&mut self, ui: &mut Ui) {
-        // If not paused, increment multiplier, request redraw and
-        // Else, draw
-        if !self.paused && self.multiplier < self.num_points as f32 && self.multiplier >= 0.0 {
-            self.multiplier += self.step_size;
-            ui.ctx().request_repaint();
-        }
-
         // Calculate radius of circle from screen size
         let radius: f32 = if self.center.1 < self.center.0 {
             self.center.1 * self.zoom
@@ -183,17 +209,23 @@ impl TimesCircleApp {
 
             // Transform to world coords
             let p1 = Pos2 {
-                x: (points[i].x + self.center.0 + self.offset.0),
-                y: (points[i].y + self.center.1 + self.offset.1),
+                x: (points[i % self.num_points].x + self.center.0 + self.offset.0),
+                y: (points[i % self.num_points].y + self.center.1 + self.offset.1),
             };
             let p2 = Pos2 {
                 x: (points[j].x + self.center.0) + self.offset.0,
                 y: (points[j].y + self.center.1) + self.offset.1,
             };
 
-            // Draw line
-            ui.painter()
+            // Draw line using given color mode
+            if self.color_mode == "Monochrome" {
+                ui.painter()
                 .line_segment([p1, p2], Stroke::new(self.stroke, self.color));
+            } else if self.color_mode == "Length" {
+                ui.painter().line_segment([p1, p2], Stroke::new(self.stroke, Color32::DARK_GREEN)); 
+            } else {
+                ui.painter().line_segment([p1, p2], Stroke::new(self.stroke, Color32::DARK_BLUE));                 
+            }
         }
 
         // Draw circle
@@ -208,18 +240,16 @@ impl TimesCircleApp {
         );
     }
 
+    // Rename to mouse controls? 
     fn movement_controls(&mut self, ctx: &egui::Context) {
         // Calculate center of current screen
-        self.center = (
+        self.center = ( // This should probably be moved out of this function
             (ctx.available_rect().max.x - ctx.available_rect().min.x) / 2.0,
             (ctx.available_rect().max.y - ctx.available_rect().min.y) / 2.0,
         );
 
         // Calculate zoom
-        self.zoom += ctx.input().scroll_delta.y / 60.0;
-        if self.zoom < 0.0001 {
-            self.zoom = 0.0001;
-        }
+        self.zoom = f32::max(0.85, self.zoom + ctx.input().scroll_delta.y / 60.0);
 
         // Allow to drag circle around with mouse
         if ctx.input().pointer.button_down(PointerButton::Primary) {
