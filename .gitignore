@@ -1,1 +1,5 @@
 /target
+build_web.sh
+setup_web.sh
+start_server.sh
+check.sh
