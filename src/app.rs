@@ -1,4 +1,4 @@
-use egui::{Color32, FontId, PointerButton, Pos2, RichText, Stroke, Ui};
+use egui::{Align2, Color32, FontId, PointerButton, Pos2, RichText, Stroke, TextBuffer, Ui};
 
 pub struct TimesCircleApp {
     paused: bool,
@@ -33,9 +33,6 @@ impl Default for TimesCircleApp {
 impl eframe::App for TimesCircleApp {
     // Called whenever frame needs to be redrawn, maybe several times a second
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Update the current state of the app based on the user controls
-        self.controls(ctx);
-
         // Paint Ui
         self.ui(ctx);
     }
@@ -55,13 +52,17 @@ impl TimesCircleApp {
             .frame(my_frame)
             .show(ctx, |ui| {
                 // Display options Ui
-                egui::Frame::popup(ui.style())
-                    .rounding(15.0)
-                    .stroke(Stroke::none())
-                    .show(ui, |ui| {
-                        egui::CollapsingHeader::new("Settings").show(ui, |ui| self.options_ui(ui));
+                egui::Window::new("Settings".as_str())
+                    .collapsible(true)
+                    .auto_sized()
+                    .anchor(Align2::LEFT_TOP, [10.0, 10.0])
+                    .show(ctx, |ui| {
+                        self.options_ui(ui);
                     });
 
+                if ui.ui_contains_pointer() {
+                    self.controls(ctx);
+                }
                 // Paint times circle
                 self.times_circle(ui);
             });
@@ -127,12 +128,16 @@ impl TimesCircleApp {
                 self.paused = true;
             }
 
-            // if ui
-            //     .button(RichText::new("⏺").color(Color32::DARK_RED))
-            //     .clicked()
-            // {
-            //     self.paused = false;
-            // }
+            if ui
+                .button(RichText::new("⏺").color(Color32::DARK_RED))
+                .clicked()
+            {
+                self.paused = false;
+            }
+
+            if ui.button("📷").clicked() {
+                self.paused = true;
+            }
         });
     }
 
@@ -142,6 +147,10 @@ impl TimesCircleApp {
         if !self.paused && self.multiplier < self.num_points as f32 && self.multiplier >= 0.0 {
             self.multiplier += self.step_size;
             ui.ctx().request_repaint();
+        }
+
+        if ui.ui_contains_pointer() {
+            ui.label("true");
         }
 
         // Calculate radius of circle from screen size
