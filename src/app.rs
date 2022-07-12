@@ -5,6 +5,7 @@ pub struct TimesCircleApp {
     center: (f32, f32),
     offset: (f32, f32),
     zoom: f32,
+    first_frame: bool,
     num_points: usize,
     multiplier: f32,
     step_size: f32,
@@ -20,6 +21,7 @@ impl Default for TimesCircleApp {
             center: (0.0, 0.0),
             offset: (0.0, 0.0),
             zoom: 0.85,
+            first_frame: true,
             num_points: 500,
             multiplier: 2.0,
             step_size: 0.1,
@@ -60,9 +62,21 @@ impl TimesCircleApp {
                         self.options_ui(ui);
                     });
 
-                if ui.ui_contains_pointer() {
-                    self.controls(ctx);
+                // Only look for movement controls if pointer is over
+                // central panel containing drawing
+                // Keep track of first track because of bug where circle isn't painted
+                // until mouse is moved
+                if ui.ui_contains_pointer() || self.first_frame {
+                    self.movement_controls(ctx);
+                    self.first_frame = false;
                 }
+
+                if let Some(multi_touch) = ui.ctx().multi_touch() {
+                    self.zoom *= multi_touch.zoom_delta;
+                    self.offset.0 += multi_touch.translation_delta.x;
+                    self.offset.1 += multi_touch.translation_delta.y;
+                }
+
                 // Paint times circle
                 self.times_circle(ui);
             });
@@ -149,10 +163,6 @@ impl TimesCircleApp {
             ui.ctx().request_repaint();
         }
 
-        if ui.ui_contains_pointer() {
-            ui.label("true");
-        }
-
         // Calculate radius of circle from screen size
         let radius: f32 = if self.center.1 < self.center.0 {
             self.center.1 * self.zoom
@@ -195,7 +205,7 @@ impl TimesCircleApp {
         );
     }
 
-    fn controls(&mut self, ctx: &egui::Context) {
+    fn movement_controls(&mut self, ctx: &egui::Context) {
         // Calculate center of current screen
         self.center = (
             (ctx.available_rect().max.x - ctx.available_rect().min.x) / 2.0,
