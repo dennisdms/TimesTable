@@ -2,10 +2,11 @@ use egui::{Align2, Color32, FontId, PointerButton, Pos2, RichText, Stroke, TextB
 
 pub struct TimesCircleApp {
     paused: bool,
+    first_frame: bool,
     center: (f32, f32),
     offset: (f32, f32),
     zoom: f32,
-    first_frame: bool,
+    rotation: f32,
     num_points: usize,
     multiplier: f32,
     step_size: f32,
@@ -18,10 +19,11 @@ impl Default for TimesCircleApp {
     fn default() -> Self {
         Self {
             paused: true,
+            first_frame: true,
             center: (0.0, 0.0),
             offset: (0.0, 0.0),
             zoom: 0.85,
-            first_frame: true,
+            rotation: std::f32::consts::PI,
             num_points: 500,
             multiplier: 2.0,
             step_size: 0.1,
@@ -75,6 +77,7 @@ impl TimesCircleApp {
                     self.zoom *= multi_touch.zoom_delta;
                     self.offset.0 += multi_touch.translation_delta.x;
                     self.offset.1 += multi_touch.translation_delta.y;
+                    self.rotation += multi_touch.rotation_delta;
                 }
 
                 // Paint times circle
@@ -171,7 +174,7 @@ impl TimesCircleApp {
         };
 
         // Generate evenly spaced points around the circumference of a circle
-        let points: Vec<Pos2> = generate_points(self.num_points, radius);
+        let points: Vec<Pos2> = generate_points(self.num_points, self.rotation, radius);
 
         // Draw lines between points
         for i in 0..self.num_points {
@@ -227,10 +230,10 @@ impl TimesCircleApp {
 }
 
 // Generate the coordinates of the points on the circle
-fn generate_points(num_points: usize, radius: f32) -> Vec<Pos2> {
+fn generate_points(num_points: usize, start_angle: f32, radius: f32) -> Vec<Pos2> {
     let n: f32 = num_points as f32;
     let mut points: Vec<Pos2> = Vec::with_capacity(num_points);
-    let mut angle: f32 = std::f32::consts::PI;
+    let mut angle: f32 = start_angle;
     for _ in 0..num_points {
         let point = Pos2 {
             x: radius * angle.cos(),
