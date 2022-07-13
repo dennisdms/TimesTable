@@ -30,13 +30,6 @@ pub struct TimesCircleApp {
 impl eframe::App for TimesCircleApp {
     // Called whenever frame needs to be redrawn, maybe several times a second
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Request a repaint (update gets called again immediately after this)
-        // When animating circle
-        if !self.paused && self.multiplier < self.num_points as f32 && self.multiplier > 0.0 {
-            self.multiplier += self.step_size;
-            ctx.request_repaint();
-        }
-
         // Calculate center of window (may change as window is resized)
         self.center = Pos2 {
             x: (ctx.available_rect().max.x - ctx.available_rect().min.x) / 2.0,
@@ -45,6 +38,13 @@ impl eframe::App for TimesCircleApp {
 
         // Draw ui
         self.ui(ctx);
+
+        // Request a repaint (update gets called again immediately after this)
+        // When animating circle
+        if !self.paused && self.multiplier < self.num_points as f32 && self.multiplier > 0.0 {
+            self.multiplier += self.step_size;
+            ctx.request_repaint();
+        }
     }
 }
 
@@ -178,8 +178,9 @@ impl TimesCircleApp {
         };
 
         // Generate evenly spaced points around the circumference of a circle
-        let points: Vec<Pos2> = generate_points(self.num_points, self.rotation, radius);
+        let points: Vec<Pos2> = generate_points(self.num_points, self.rotation);
 
+        // FIXME This could be refactored
         // Draw lines between points
         for i in 0..self.num_points {
             // Find the point to connect to
@@ -187,14 +188,15 @@ impl TimesCircleApp {
 
             // Transform to world coords
             let p1 = Pos2 {
-                x: points[i].x + self.center.x + self.offset.x,
-                y: points[i].y + self.center.y + self.offset.y,
+                x: points[i].x * radius + self.center.x + self.offset.x,
+                y: points[i].y * radius + self.center.y + self.offset.y,
             };
             let p2 = Pos2 {
-                x: points[j].x + self.center.x + self.offset.x,
-                y: points[j].y + self.center.y + self.offset.y,
+                x: points[j].x * radius + self.center.x + self.offset.x,
+                y: points[j].y * radius + self.center.y + self.offset.y,
             };
 
+            // TODO implement other color modes
             // Draw line with using appropriate color mode
             match self.color_mode {
                 ColorMode::Monochrome(_) => ui
@@ -221,7 +223,6 @@ impl TimesCircleApp {
         )
     }
 
-    // Rename to mouse controls?
     fn handle_mouse(&mut self, ctx: &egui::Context) {
         // Allow to drag circle around with mouse
         if ctx.input().pointer.button_down(PointerButton::Primary) {
@@ -230,15 +231,14 @@ impl TimesCircleApp {
             ctx.output().cursor_icon = CursorIcon::Grab;
         }
 
-        // TODO Zoom to mouse pos
         if let Some(pos) = ctx.pointer_hover_pos() {
             let factor = ctx.input().zoom_delta();
             self.zoom *= factor;
 
-            // let dx = (self.center.x - pos.x) * (factor - 1.0);
-            // let dy = (self.center.y - pos.x) * (factor - 1.0);
-            // self.offset.x += dx;
-            // self.offset.y += dy;
+            let dx = (self.center.x + self.offset.x - pos.x) * (factor - 1.0);
+            let dy = (self.center.y + self.offset.y - pos.y) * (factor - 1.0);
+            self.offset.x += dx;
+            self.offset.y += dy;
         }
     }
 
@@ -250,15 +250,15 @@ impl TimesCircleApp {
     }
 }
 
-// Generate evenly spaced points around a circle of given radius, starting at given start_angle
-fn generate_points(num_points: usize, start_angle: f32, radius: f32) -> Vec<Pos2> {
+// Generate evenly spaced points around a circle of radius 1, starting at given start_angle
+fn generate_points(num_points: usize, start_angle: f32) -> Vec<Pos2> {
     let n: f32 = num_points as f32;
     let mut points: Vec<Pos2> = Vec::with_capacity(num_points);
     let mut angle: f32 = start_angle;
     for _ in 0..num_points {
         let point = Pos2 {
-            x: radius * angle.cos(),
-            y: radius * angle.sin(),
+            x: f32::cos(angle),
+            y: f32::sin(angle),
         };
         angle += std::f32::consts::TAU / n;
         points.push(point);
