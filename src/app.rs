@@ -1,7 +1,6 @@
-use egui::{Align2, Color32, FontId, MultiTouchInfo, PointerButton, Pos2, RichText, Stroke, Ui};
-
-// Scroll wheel zoom sensitivity. Larger numbers are less sensitive.
-const MOUSE_SCROLL_SENSITIVITY: f32 = 100.0;
+use egui::{
+    Align2, Color32, CursorIcon, FontId, MultiTouchInfo, PointerButton, Pos2, RichText, Stroke, Ui,
+};
 
 // Position where options ui is anchored (in pixels)
 const OPTIONS_UI_ANCHOR_LOCATION: [f32; 2] = [10.0, 10.0];
@@ -228,16 +227,18 @@ impl TimesCircleApp {
         if ctx.input().pointer.button_down(PointerButton::Primary) {
             self.offset.x += ctx.input().pointer.delta().x;
             self.offset.y += ctx.input().pointer.delta().y;
+            ctx.output().cursor_icon = CursorIcon::Grab;
         }
 
         // TODO Zoom to mouse pos
         if let Some(pos) = ctx.pointer_hover_pos() {
-            let scroll_delta = ctx.input().scroll_delta.y / MOUSE_SCROLL_SENSITIVITY;
-            if scroll_delta != 0.0 {
-                self.zoom = f32::max(0.8, self.zoom + scroll_delta);
-                self.offset.x += (pos.x - self.center.x) / self.zoom;
-                self.offset.y += (pos.y - self.center.y) / self.zoom;
-            }
+            let factor = ctx.input().zoom_delta();
+            self.zoom *= factor;
+
+            // let dx = (self.center.x - pos.x) * (factor - 1.0);
+            // let dy = (self.center.y - pos.x) * (factor - 1.0);
+            // self.offset.x += dx;
+            // self.offset.y += dy;
         }
     }
 
