@@ -1,9 +1,9 @@
 use egui::{Align2, Color32, FontId, MultiTouchInfo, PointerButton, Pos2, RichText, Stroke, Ui};
 
-// Scrlol wheel zoom sensitivity. Larger numbers are less sensitive.
+// Scroll wheel zoom sensitivity. Larger numbers are less sensitive.
 const MOUSE_SCROLL_SENSITIVITY: f32 = 100.0;
 
-// Position where options ui is centered
+// Position where options ui is anchored (in pixels)
 const OPTIONS_UI_ANCHOR_LOCATION: [f32; 2] = [10.0, 10.0];
 
 enum ColorMode {
@@ -14,11 +14,11 @@ enum ColorMode {
 
 pub struct TimesCircleApp {
     first_frame: bool,
-    paused: bool,
-    center: (f32, f32),
-    offset: (f32, f32),
+    center: Pos2,
+    offset: Pos2,
     zoom: f32,
     rotation: f32,
+    paused: bool,
     num_points: usize,
     multiplier: f32,
     step_size: f32,
@@ -31,12 +31,20 @@ pub struct TimesCircleApp {
 impl eframe::App for TimesCircleApp {
     // Called whenever frame needs to be redrawn, maybe several times a second
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Animate times circle
+        // Request a repaint (update gets called again immediately after this)
+        // When animating circle
         if !self.paused && self.multiplier < self.num_points as f32 && self.multiplier > 0.0 {
             self.multiplier += self.step_size;
             ctx.request_repaint();
         }
 
+        // Calculate center of window (may change as window is resized)
+        self.center = Pos2 {
+            x: (ctx.available_rect().max.x - ctx.available_rect().min.x) / 2.0,
+            y: (ctx.available_rect().max.y - ctx.available_rect().min.y) / 2.0,
+        };
+
+        // Draw ui
         self.ui(ctx);
     }
 }
@@ -44,14 +52,13 @@ impl eframe::App for TimesCircleApp {
 impl TimesCircleApp {
     // Initialize app state
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        // _cc.egui_ctx.request_repaint();
         TimesCircleApp {
             first_frame: true,
-            paused: true,
-            center: (0.0, 0.0),
-            offset: (0.0, 0.0),
+            center: Pos2 { x: 0.0, y: 0.0 },
+            offset: Pos2 { x: 0.0, y: 0.0 },
             zoom: 0.85,
             rotation: std::f32::consts::PI,
+            paused: true,
             num_points: 500,
             multiplier: 2.0,
             step_size: 0.1,
@@ -64,12 +71,11 @@ impl TimesCircleApp {
 
     fn ui(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            // Paint times circle
-            self.times_circle(ui);
-
+            // Handle mouse controls
             if ui.ui_contains_pointer() || self.first_frame {
                 self.handle_mouse(ctx);
 
+                // Use first frame to fix bug
                 self.first_frame = false;
                 ctx.request_repaint();
             }
@@ -80,13 +86,16 @@ impl TimesCircleApp {
             }
 
             // Display options Ui
-            egui::Window::new("Settings")
+            egui::Window::new("Options")
                 .collapsible(true)
                 .auto_sized()
                 .anchor(Align2::LEFT_TOP, OPTIONS_UI_ANCHOR_LOCATION)
                 .show(ctx, |ui| {
                     self.options_ui(ui);
                 });
+
+            // Display times circle
+            self.times_circle(ui);
         });
     }
 
@@ -163,10 +172,10 @@ impl TimesCircleApp {
 
     fn times_circle(&mut self, ui: &mut Ui) {
         // Calculate radius of circle from screen size
-        let radius: f32 = if self.center.1 < self.center.0 {
-            self.center.1 * self.zoom
+        let radius: f32 = if self.center.y < self.center.x {
+            self.center.y * self.zoom
         } else {
-            self.center.0 * self.zoom
+            self.center.x * self.zoom
         };
 
         // Generate evenly spaced points around the circumference of a circle
@@ -179,14 +188,15 @@ impl TimesCircleApp {
 
             // Transform to world coords
             let p1 = Pos2 {
-                x: points[i].x + self.center.0 + self.offset.0,
-                y: points[i].y + self.center.1 + self.offset.1,
+                x: points[i].x + self.center.x + self.offset.x,
+                y: points[i].y + self.center.y + self.offset.y,
             };
             let p2 = Pos2 {
-                x: points[j].x + self.center.0 + self.offset.0,
-                y: points[j].y + self.center.1 + self.offset.1,
+                x: points[j].x + self.center.x + self.offset.x,
+                y: points[j].y + self.center.y + self.offset.y,
             };
 
+            // Draw line with using appropriate color mode
             match self.color_mode {
                 ColorMode::Monochrome(_) => ui
                     .painter()
@@ -203,8 +213,8 @@ impl TimesCircleApp {
         // Draw circle
         ui.painter().circle(
             Pos2 {
-                x: self.center.0 + self.offset.0,
-                y: self.center.1 + self.offset.1,
+                x: self.center.x + self.offset.x,
+                y: self.center.y + self.offset.y,
             },
             radius,
             Color32::TRANSPARENT,
@@ -214,35 +224,32 @@ impl TimesCircleApp {
 
     // Rename to mouse controls?
     fn handle_mouse(&mut self, ctx: &egui::Context) {
-        // Calculate center of current screen
-        self.center = (
-            // This should probably be moved out of this function
-            (ctx.available_rect().max.x - ctx.available_rect().min.x) / 2.0,
-            (ctx.available_rect().max.y - ctx.available_rect().min.y) / 2.0,
-        );
-
         // Allow to drag circle around with mouse
         if ctx.input().pointer.button_down(PointerButton::Primary) {
-            self.offset.0 += ctx.input().pointer.delta().x;
-            self.offset.1 += ctx.input().pointer.delta().y;
+            self.offset.x += ctx.input().pointer.delta().x;
+            self.offset.y += ctx.input().pointer.delta().y;
         }
-                
-        // Calculate zoom
-        self.zoom = f32::max(
-            0.85,
-            self.zoom + ctx.input().scroll_delta.y / MOUSE_SCROLL_SENSITIVITY,
-        );
+
+        // TODO Zoom to mouse pos
+        if let Some(pos) = ctx.pointer_hover_pos() {
+            let scroll_delta = ctx.input().scroll_delta.y / MOUSE_SCROLL_SENSITIVITY;
+            if scroll_delta != 0.0 {
+                self.zoom = f32::max(0.8, self.zoom + scroll_delta);
+                self.offset.x += (pos.x - self.center.x) / self.zoom;
+                self.offset.y += (pos.y - self.center.y) / self.zoom;
+            }
+        }
     }
 
     fn handle_multitouch(&mut self, multi_touch: MultiTouchInfo) {
         self.zoom *= multi_touch.zoom_delta;
         self.rotation += multi_touch.rotation_delta;
-        self.offset.0 += multi_touch.translation_delta.x;
-        self.offset.1 += multi_touch.translation_delta.y;
+        self.offset.x += multi_touch.translation_delta.x;
+        self.offset.y += multi_touch.translation_delta.y;
     }
 }
 
-// Generate the coordinates of the points on the circle
+// Generate evenly spaced points around a circle of given radius, starting at given start_angle
 fn generate_points(num_points: usize, start_angle: f32, radius: f32) -> Vec<Pos2> {
     let n: f32 = num_points as f32;
     let mut points: Vec<Pos2> = Vec::with_capacity(num_points);
