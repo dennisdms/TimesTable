@@ -221,17 +221,17 @@ impl TimesCircleApp {
             (ctx.available_rect().max.y - ctx.available_rect().min.y) / 2.0,
         );
 
-        // Calculate zoom
-        self.zoom = f32::max(
-            0.85,
-            self.zoom + ctx.input().scroll_delta.y / MOUSE_SCROLL_SENSITIVITY,
-        );
-
         // Allow to drag circle around with mouse
         if ctx.input().pointer.button_down(PointerButton::Primary) {
             self.offset.0 += ctx.input().pointer.delta().x;
             self.offset.1 += ctx.input().pointer.delta().y;
         }
+                
+        // Calculate zoom
+        self.zoom = f32::max(
+            0.85,
+            self.zoom + ctx.input().scroll_delta.y / MOUSE_SCROLL_SENSITIVITY,
+        );
     }
 
     fn handle_multitouch(&mut self, multi_touch: MultiTouchInfo) {
