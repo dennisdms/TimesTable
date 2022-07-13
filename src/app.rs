@@ -3,7 +3,7 @@ use egui::{
 };
 
 // Position where options ui is anchored (in pixels)
-const OPTIONS_UI_ANCHOR_LOCATION: [f32; 2] = [10.0, 10.0];
+const OPTIONS_UI_OFFSET: [f32; 2] = [10.0, 10.0];
 
 enum ColorMode {
     Monochrome(String),
@@ -69,7 +69,8 @@ impl TimesCircleApp {
     }
 
     fn ui(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+        let frame = egui::Frame::default().fill(self.background_color);
+        egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
             // Handle mouse controls
             if ui.ui_contains_pointer() || self.first_frame {
                 self.handle_mouse(ctx);
@@ -88,7 +89,7 @@ impl TimesCircleApp {
             egui::Window::new("Options")
                 .collapsible(true)
                 .auto_sized()
-                .anchor(Align2::LEFT_TOP, OPTIONS_UI_ANCHOR_LOCATION)
+                .anchor(Align2::LEFT_TOP, OPTIONS_UI_OFFSET)
                 .show(ctx, |ui| {
                     self.options_ui(ui);
                 });
