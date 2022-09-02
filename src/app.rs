@@ -2,9 +2,6 @@ use egui::{
     Align2, Color32, CursorIcon, FontId, MultiTouchInfo, PointerButton, Pos2, RichText, Stroke, Ui,
 };
 
-// Position where options ui is anchored (in pixels)
-const OPTIONS_UI_OFFSET: [f32; 2] = [10.0, 10.0];
-
 enum ColorMode {
     Monochrome(String),
     Length(String),
@@ -25,6 +22,7 @@ pub struct TimesCircleApp {
     color: Color32,
     background_color: Color32,
     color_mode: ColorMode,
+    show_points: bool,
 }
 
 impl eframe::App for TimesCircleApp {
@@ -58,13 +56,14 @@ impl TimesCircleApp {
             zoom: 0.85,
             rotation: std::f32::consts::PI,
             paused: true,
-            num_points: 500,
+            num_points: 10,
             multiplier: 2.0,
             step_size: 0.1,
-            stroke: 0.3,
+            stroke: 1.0,
             color: Color32::from_rgb(0, 0, 0),
             background_color: Color32::from_rgb(255, 255, 255),
             color_mode: ColorMode::Monochrome("Monochrome".to_string()),
+            show_points: true,
         }
     }
 
@@ -73,7 +72,7 @@ impl TimesCircleApp {
         egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
             // Handle mouse controls
             if ui.ui_contains_pointer() || self.first_frame {
-                self.handle_mouse(ctx);
+                self.handle_mouse_inputs(ctx);
 
                 // Use first frame to fix bug
                 self.first_frame = false;
@@ -82,20 +81,20 @@ impl TimesCircleApp {
 
             // Handle multitouch gestures for mobile
             if let Some(multi_touch) = ui.ctx().multi_touch() {
-                self.handle_multitouch(multi_touch);
+                self.handle_multitouch_inputs(multi_touch);
             }
 
             // Display options Ui
             egui::Window::new("Options")
                 .collapsible(true)
                 .auto_sized()
-                .anchor(Align2::LEFT_TOP, OPTIONS_UI_OFFSET)
+                .anchor(Align2::LEFT_TOP, [10.0, 10.0])
                 .show(ctx, |ui| {
                     self.options_ui(ui);
                 });
 
-            // Display times circle
-            self.times_circle(ui);
+            // Paint times circle
+            self.paint_times_circle(ui);
         });
     }
 
@@ -113,7 +112,7 @@ impl TimesCircleApp {
         ui.add(
             egui::Slider::new(&mut self.multiplier, 0.0..=self.num_points as f32)
                 .text("Multiplier")
-                .min_decimals(1)
+                .min_decimals(2)
                 .max_decimals(2),
         );
 
@@ -159,6 +158,13 @@ impl TimesCircleApp {
             ui.color_edit_button_srgba(&mut self.background_color);
         });
 
+        // Show points radio
+        ui.horizontal(|ui| {
+            ui.label("Show Points");
+            ui.radio_value(&mut self.show_points, true, "Yes");
+            ui.radio_value(&mut self.show_points, false, "No");
+        });
+
         // Playback buttons
         ui.horizontal(|ui| {
             if ui.button("▶").clicked() {
@@ -170,7 +176,7 @@ impl TimesCircleApp {
         });
     }
 
-    fn times_circle(&mut self, ui: &mut Ui) {
+    fn paint_times_circle(&mut self, ui: &mut Ui) {
         // Calculate radius of circle from screen size
         let radius: f32 = if self.center.y < self.center.x {
             self.center.y * self.zoom
@@ -179,7 +185,11 @@ impl TimesCircleApp {
         };
 
         // Generate evenly spaced points around the circumference of a circle
-        let points: Vec<Pos2> = generate_points(self.num_points, self.rotation);
+        let points: Vec<Pos2> = TimesCircleApp::generate_points(self.num_points, self.rotation);
+
+        if (self.show_points) {
+            self.draw_perimeter_points(radius, &points, ui);
+        }
 
         // FIXME This could be refactored
         // Draw lines between points
@@ -224,45 +234,56 @@ impl TimesCircleApp {
         )
     }
 
-    fn handle_mouse(&mut self, ctx: &egui::Context) {
+    fn draw_perimeter_points(&mut self, radius: f32, points: &Vec<Pos2>, ui: &mut Ui) {
+        // Draw points
+        for i in 0..self.num_points {
+            let p = Pos2 {
+                x: points[i].x * radius + self.center.x + self.offset.x,
+                y: points[i].y * radius + self.center.y + self.offset.y,
+            };
+            ui.painter().circle(p, 2.0, Color32::BLACK, Stroke::new(self.stroke, Color32::DARK_BLUE));
+        }
+    }
+
+    fn handle_mouse_inputs(&mut self, ctx: &egui::Context) {
         // Allow to drag circle around with mouse
         if ctx.input().pointer.button_down(PointerButton::Primary) {
+            ctx.output().cursor_icon = CursorIcon::Grab;
             self.offset.x += ctx.input().pointer.delta().x;
             self.offset.y += ctx.input().pointer.delta().y;
-            ctx.output().cursor_icon = CursorIcon::Grab;
         }
 
+        // Zoom
         if let Some(pos) = ctx.pointer_hover_pos() {
             let factor = ctx.input().zoom_delta();
             self.zoom *= factor;
 
-            let dx = (self.center.x + self.offset.x - pos.x) * (factor - 1.0);
-            let dy = (self.center.y + self.offset.y - pos.y) * (factor - 1.0);
-            self.offset.x += dx;
-            self.offset.y += dy;
+            // Change offset to zoom into mouse location
+            self.offset.x += (self.center.x + self.offset.x - pos.x) * (factor - 1.0);
+            self.offset.y += (self.center.y + self.offset.y - pos.y) * (factor - 1.0);
         }
     }
 
-    fn handle_multitouch(&mut self, multi_touch: MultiTouchInfo) {
+    fn handle_multitouch_inputs(&mut self, multi_touch: MultiTouchInfo) {
         self.zoom *= multi_touch.zoom_delta;
         self.rotation += multi_touch.rotation_delta;
         self.offset.x += multi_touch.translation_delta.x;
         self.offset.y += multi_touch.translation_delta.y;
     }
-}
 
-// Generate evenly spaced points around a circle of radius 1, starting at given start_angle
-fn generate_points(num_points: usize, start_angle: f32) -> Vec<Pos2> {
-    let n: f32 = num_points as f32;
-    let mut points: Vec<Pos2> = Vec::with_capacity(num_points);
-    let mut angle: f32 = start_angle;
-    for _ in 0..num_points {
-        let point = Pos2 {
-            x: f32::cos(angle),
-            y: f32::sin(angle),
-        };
-        angle += std::f32::consts::TAU / n;
-        points.push(point);
+    // Generate evenly spaced points around a circle of radius 1, starting at given start_angle
+    fn generate_points(num_points: usize, start_angle: f32) -> Vec<Pos2> {
+        let n: f32 = num_points as f32;
+        let mut points: Vec<Pos2> = Vec::with_capacity(num_points);
+        let mut angle: f32 = start_angle;
+        for _ in 0..num_points {
+            let point = Pos2 {
+                x: f32::cos(angle),
+                y: f32::sin(angle),
+            };
+            angle += std::f32::consts::TAU / n;
+            points.push(point);
+        }
+        points
     }
-    points
 }
