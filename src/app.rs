@@ -241,7 +241,12 @@ impl TimesCircleApp {
                 x: points[i].x * radius + self.center.x + self.offset.x,
                 y: points[i].y * radius + self.center.y + self.offset.y,
             };
-            ui.painter().circle(p, 2.0, Color32::BLACK, Stroke::new(self.stroke, Color32::DARK_BLUE));
+            ui.painter().circle(
+                p,
+                2.0,
+                Color32::BLACK,
+                Stroke::new(self.stroke, Color32::DARK_BLUE),
+            );
         }
     }
 
