@@ -1,6 +1,17 @@
 use egui::{
-    Align2, Color32, CursorIcon, FontId, MultiTouchInfo, PointerButton, Pos2, RichText, Stroke, Ui,
+    color, Align2, Color32, CursorIcon, FontId, MultiTouchInfo, PointerButton, Pos2, RichText,
+    Stroke, Ui,
 };
+
+// TODO 1. Add presets
+// TODO 2. Add radial color mode
+// TODO 3. Add opacity control for lines
+// TODO 4. Add point labels
+// TODO 5. Gray out certain options when certain color modes are selected
+// TODO 6. Change rendering algo to draw lines in following order: 0, last, 1, last-1, 2, last-2...
+// TODO 7. Re order options menu some more
+// TODO 8. Add reset button
+// TODO 9. Remove show points radio - check if point size is 0 to achieve same effect
 
 enum ColorMode {
     Monochrome(String),
@@ -22,7 +33,9 @@ pub struct TimesCircleApp {
     color: Color32,
     background_color: Color32,
     color_mode: ColorMode,
-    show_points: bool,
+    show_style_options: bool,
+    perimeter_points_radius: f32,
+    perimeter_point_color: Color32,
 }
 
 impl eframe::App for TimesCircleApp {
@@ -60,10 +73,12 @@ impl TimesCircleApp {
             multiplier: 2.0,
             step_size: 0.1,
             stroke: 1.0,
-            color: Color32::from_rgb(0, 0, 0),
-            background_color: Color32::from_rgb(255, 255, 255),
+            color: Color32::BLACK,
+            background_color: Color32::WHITE,
             color_mode: ColorMode::Monochrome("Monochrome".to_string()),
-            show_points: true,
+            show_style_options: false,
+            perimeter_points_radius: 2.0,
+            perimeter_point_color: Color32::BLACK,
         }
     }
 
@@ -96,6 +111,16 @@ impl TimesCircleApp {
             // Paint times circle
             self.paint_times_circle(ui);
         });
+
+        if self.show_style_options {
+            egui::Window::new("Style Options")
+                .collapsible(true)
+                .resizable(false)
+                .title_bar(false)
+                .show(ctx, |ui| {
+                    self.style_options_ui(ui);
+                });
+        }
     }
 
     fn options_ui(&mut self, ui: &mut Ui) {
@@ -124,12 +149,34 @@ impl TimesCircleApp {
                 .max_decimals(3),
         );
 
-        // Stroke width slider
-        ui.add(
-            egui::Slider::new(&mut self.stroke, 0.0..=1.0)
-                .text("Stroke Width")
-                .max_decimals(2),
-        );
+        // Playback buttons
+        ui.horizontal(|ui| {
+            if ui.button("▶").clicked() {
+                self.paused = false;
+            }
+            if ui.button("■").clicked() {
+                self.paused = true;
+            }
+        });
+
+        ui.horizontal(|ui| {
+            if ui.button("Presets").clicked() {}
+            if ui.button("Style Options").clicked() {
+                self.show_style_options = !self.show_style_options;
+            }
+        });
+    }
+
+    fn style_options_ui(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            ui.heading("Style Options");
+        });
+
+        // Background color picker
+        ui.horizontal(|ui| {
+            ui.label("Background Color");
+            ui.color_edit_button_srgba(&mut self.background_color);
+        });
 
         // Color mode
         ui.horizontal(|ui| {
@@ -146,33 +193,41 @@ impl TimesCircleApp {
             };
         });
 
-        // Stroke color picker
+        // Line color picker
         ui.horizontal(|ui| {
-            ui.label("Stroke Color");
+            if matches!(self.color_mode, ColorMode::Monochrome(_)) {
+                ui.set_enabled(true);
+            } else {
+                ui.set_enabled(false);
+            }
+            ui.label("Line Color");
             ui.color_edit_button_srgba(&mut self.color);
         });
 
-        // Background color picker
-        ui.horizontal(|ui| {
-            ui.label("Background Color");
-            ui.color_edit_button_srgba(&mut self.background_color);
-        });
+        // Line width slider
+        ui.add(
+            egui::Slider::new(&mut self.stroke, 0.0..=1.0)
+                .text("Line Width")
+                .max_decimals(2),
+        );
 
-        // Show points radio
-        ui.horizontal(|ui| {
-            ui.label("Show Points");
-            ui.radio_value(&mut self.show_points, true, "Yes");
-            ui.radio_value(&mut self.show_points, false, "No");
-        });
+        // Points radius slider
+        ui.add(
+            egui::Slider::new(&mut self.perimeter_points_radius, 0.0..=10.0 as f32)
+                .text("Point Size")
+                .min_decimals(2)
+                .max_decimals(2),
+        );
 
-        // Playback buttons
+        // Point color picker
         ui.horizontal(|ui| {
-            if ui.button("▶").clicked() {
-                self.paused = false;
+            if self.perimeter_points_radius == 0.0 {
+                ui.set_enabled(false);
+            } else {
+                ui.set_enabled(true);
             }
-            if ui.button("■").clicked() {
-                self.paused = true;
-            }
+            ui.label("Point Color");
+            ui.color_edit_button_srgba(&mut self.perimeter_point_color);
         });
     }
 
@@ -187,13 +242,9 @@ impl TimesCircleApp {
         // Generate evenly spaced points around the circumference of a circle
         let points: Vec<Pos2> = TimesCircleApp::generate_points(self.num_points, self.rotation);
 
-        if (self.show_points) {
-            self.draw_perimeter_points(radius, &points, ui);
-        }
-
         // FIXME This could be refactored
         // Draw lines between points
-        for i in 0..self.num_points {
+        for i in 0..(self.num_points) {
             // Find the point to connect to
             let j = ((i as f32) * self.multiplier) as usize % self.num_points;
 
@@ -210,12 +261,21 @@ impl TimesCircleApp {
             // TODO implement other color modes
             // Draw line with using appropriate color mode
             match self.color_mode {
-                ColorMode::Monochrome(_) => ui
-                    .painter()
-                    .line_segment([p1, p2], Stroke::new(self.stroke, self.color)),
-                ColorMode::Length(_) => ui
-                    .painter()
-                    .line_segment([p1, p2], Stroke::new(self.stroke, Color32::DARK_GREEN)),
+                ColorMode::Monochrome(_) => {
+                    ui.painter()
+                        .line_segment([p1, p2], Stroke::new(self.stroke, self.color));
+                }
+                ColorMode::Length(_) => {
+                    let line_length = TimesCircleApp::distance_between(points[i], points[j]);
+                    let color = color::Hsva {
+                        h: line_length / 2.0,
+                        s: 1.0,
+                        v: 1.0,
+                        a: 1.0,
+                    };
+                    ui.painter()
+                        .line_segment([p1, p2], Stroke::new(self.stroke, color));
+                }
                 ColorMode::Radial(_) => ui
                     .painter()
                     .line_segment([p1, p2], Stroke::new(self.stroke, Color32::DARK_BLUE)),
@@ -231,7 +291,11 @@ impl TimesCircleApp {
             radius,
             Color32::TRANSPARENT,
             Stroke::new(self.stroke, self.color),
-        )
+        );
+
+        if self.perimeter_points_radius > 0.0 {
+            self.draw_perimeter_points(radius, &points, ui);
+        }
     }
 
     fn draw_perimeter_points(&mut self, radius: f32, points: &Vec<Pos2>, ui: &mut Ui) {
@@ -243,9 +307,9 @@ impl TimesCircleApp {
             };
             ui.painter().circle(
                 p,
-                2.0,
-                Color32::BLACK,
-                Stroke::new(self.stroke, Color32::DARK_BLUE),
+                self.perimeter_points_radius,
+                self.perimeter_point_color,
+                Stroke::new(self.stroke, self.perimeter_point_color),
             );
         }
     }
@@ -290,5 +354,9 @@ impl TimesCircleApp {
             points.push(point);
         }
         points
+    }
+
+    fn distance_between(p1: Pos2, p2: Pos2) -> f32 {
+        f32::sqrt((p2.x - p1.x).powi(2) + (p2.y - p1.y).powi(2))
     }
 }

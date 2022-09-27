@@ -9,7 +9,7 @@ fn main() {
 
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
-        "times_circle",
+        "Times Circle",
         native_options,
         Box::new(|cc| Box::new(times_circle::TimesCircleApp::new(cc))),
     );
