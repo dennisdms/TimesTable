@@ -213,7 +213,7 @@ impl TimesCircleApp {
 
         // Points radius slider
         ui.add(
-            egui::Slider::new(&mut self.perimeter_points_radius, 0.0..=10.0 as f32)
+            egui::Slider::new(&mut self.perimeter_points_radius, 0.0..=10.0)
                 .text("Point Size")
                 .min_decimals(2)
                 .max_decimals(2),
@@ -298,12 +298,12 @@ impl TimesCircleApp {
         }
     }
 
-    fn draw_perimeter_points(&mut self, radius: f32, points: &Vec<Pos2>, ui: &mut Ui) {
+    fn draw_perimeter_points(&mut self, radius: f32, points: &[Pos2], ui: &mut Ui) {
         // Draw points
-        for i in 0..self.num_points {
+        for point in points {
             let p = Pos2 {
-                x: points[i].x * radius + self.center.x + self.offset.x,
-                y: points[i].y * radius + self.center.y + self.offset.y,
+                x: point.x * radius + self.center.x + self.offset.x,
+                y: point.y * radius + self.center.y + self.offset.y,
             };
             ui.painter().circle(
                 p,
