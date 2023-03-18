@@ -18,6 +18,12 @@ enum ColorMode {
     Length(String),
     Radial(String),
 }
+#[derive(Debug, PartialEq)]
+enum Preset {
+    Rainbow,
+    Pencil,
+    Educational,
+}
 
 pub struct TimesCircleApp {
     first_frame: bool,
@@ -36,6 +42,7 @@ pub struct TimesCircleApp {
     show_style_options: bool,
     perimeter_points_radius: f32,
     perimeter_point_color: Color32,
+    preset: Preset,
 }
 
 impl eframe::App for TimesCircleApp {
@@ -68,17 +75,18 @@ impl TimesCircleApp {
             offset: Pos2 { x: 0.0, y: 0.0 },
             zoom: 0.85,
             rotation: std::f32::consts::PI,
-            paused: true,
-            num_points: 10,
+            paused: false,
+            num_points: 5000,
             multiplier: 2.0,
-            step_size: 0.1,
-            stroke: 1.0,
+            step_size: 0.01,
+            stroke: 0.02,
             color: Color32::BLACK,
-            background_color: Color32::WHITE,
-            color_mode: ColorMode::Monochrome("Monochrome".to_string()),
+            background_color: Color32::BLACK,
+            color_mode: ColorMode::Length("Length".to_string()),
             show_style_options: false,
-            perimeter_points_radius: 2.0,
+            perimeter_points_radius: 0.0,
             perimeter_point_color: Color32::BLACK,
+            preset: Preset::Rainbow,
         }
     }
 
@@ -160,7 +168,19 @@ impl TimesCircleApp {
         });
 
         ui.horizontal(|ui| {
-            if ui.button("Presets").clicked() {}
+            ui.label("Presets");
+            egui::ComboBox::from_label("")
+                .selected_text(format!("{:?}", self.preset))
+                .show_ui(ui, |ui| {
+                    if ui.selectable_value(&mut self.preset, Preset::Rainbow, "Rainbow").clicked() {
+                        self.color_mode = ColorMode::Length("Length".to_string());
+                        self.background_color = Color32::BLACK;
+                    };
+                    ui.selectable_value(&mut self.preset, Preset::Pencil, "Pencil");
+                    ui.selectable_value(&mut self.preset, Preset::Educational, "Educational");
+                });
+            
+            
             if ui.button("Style Options").clicked() {
                 self.show_style_options = !self.show_style_options;
             }
@@ -242,8 +262,7 @@ impl TimesCircleApp {
         // Generate evenly spaced points around the circumference of a circle
         let points: Vec<Pos2> = TimesCircleApp::generate_points(self.num_points, self.rotation);
 
-        // FIXME This could be refactored
-        // Draw lines between points
+        // FIXME Fix artifacts
         for i in 0..(self.num_points) {
             // Find the point to connect to
             let j = ((i as f32) * self.multiplier) as usize % self.num_points;
@@ -259,7 +278,6 @@ impl TimesCircleApp {
             };
 
             // TODO implement other color modes
-            // Draw line with using appropriate color mode
             match self.color_mode {
                 ColorMode::Monochrome(_) => {
                     ui.painter()
