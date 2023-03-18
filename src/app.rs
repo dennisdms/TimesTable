@@ -172,15 +172,17 @@ impl TimesCircleApp {
             egui::ComboBox::from_label("")
                 .selected_text(format!("{:?}", self.preset))
                 .show_ui(ui, |ui| {
-                    if ui.selectable_value(&mut self.preset, Preset::Rainbow, "Rainbow").clicked() {
+                    if ui
+                        .selectable_value(&mut self.preset, Preset::Rainbow, "Rainbow")
+                        .clicked()
+                    {
                         self.color_mode = ColorMode::Length("Length".to_string());
                         self.background_color = Color32::BLACK;
                     };
                     ui.selectable_value(&mut self.preset, Preset::Pencil, "Pencil");
                     ui.selectable_value(&mut self.preset, Preset::Educational, "Educational");
                 });
-            
-            
+
             if ui.button("Style Options").clicked() {
                 self.show_style_options = !self.show_style_options;
             }
