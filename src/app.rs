@@ -39,7 +39,6 @@ pub struct TimesCircleApp {
     color: Color32,
     background_color: Color32,
     color_mode: ColorMode,
-    show_style_options: bool,
     perimeter_points_radius: f32,
     perimeter_point_color: Color32,
     preset: Preset,
@@ -83,7 +82,6 @@ impl TimesCircleApp {
             color: Color32::BLACK,
             background_color: Color32::BLACK,
             color_mode: ColorMode::Length("Length".to_string()),
-            show_style_options: false,
             perimeter_points_radius: 0.0,
             perimeter_point_color: Color32::BLACK,
             preset: Preset::Rainbow,
@@ -119,16 +117,6 @@ impl TimesCircleApp {
             // Paint times circle
             self.paint_times_circle(ui);
         });
-
-        if self.show_style_options {
-            egui::Window::new("Style Options")
-                .collapsible(true)
-                .resizable(false)
-                .title_bar(false)
-                .show(ctx, |ui| {
-                    self.style_options_ui(ui);
-                });
-        }
     }
 
     fn options_ui(&mut self, ui: &mut Ui) {
@@ -138,6 +126,18 @@ impl TimesCircleApp {
                 .font(FontId::proportional(20.0));
         ui.label(p_mod_n);
 
+        self.control_options(ui);
+
+        // TODO add spac here
+
+        ui.horizontal(|ui| {
+            ui.heading("Style");
+        });
+
+        self.style_options_ui(ui);
+    }
+
+    fn control_options(&mut self, ui: &mut Ui) {
         // Num points slider
         ui.add(egui::Slider::new(&mut self.num_points, 0..=10000).text("Points"));
 
@@ -166,7 +166,10 @@ impl TimesCircleApp {
                 self.paused = true;
             }
         });
+    }
 
+    fn style_options_ui(&mut self, ui: &mut Ui) {
+        // Presets
         ui.horizontal(|ui| {
             ui.label("Presets");
             egui::ComboBox::from_label("")
@@ -182,16 +185,6 @@ impl TimesCircleApp {
                     ui.selectable_value(&mut self.preset, Preset::Pencil, "Pencil");
                     ui.selectable_value(&mut self.preset, Preset::Educational, "Educational");
                 });
-
-            if ui.button("Style Options").clicked() {
-                self.show_style_options = !self.show_style_options;
-            }
-        });
-    }
-
-    fn style_options_ui(&mut self, ui: &mut Ui) {
-        ui.horizontal(|ui| {
-            ui.heading("Style Options");
         });
 
         // Background color picker
