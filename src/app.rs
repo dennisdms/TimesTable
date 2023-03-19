@@ -29,11 +29,49 @@ impl ColorMode {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 enum Preset {
     Rainbow,
     Pencil,
     Educational,
+}
+
+impl Preset {
+    fn style(&self) -> TimesCircleStyle {
+        match *self {
+            Preset::Rainbow => TimesCircleStyle {
+                stroke: 0.02,
+                color: Color32::BLACK,
+                background_color: Color32::BLACK,
+                color_mode: ColorMode::Length,
+                perimeter_points_radius: 0.0,
+                perimeter_point_color: Color32::BLACK,
+            },
+            Preset::Pencil => TimesCircleStyle {
+                stroke: 0.10,
+                color: Color32::BLACK,
+                background_color: Color32::WHITE,
+                color_mode: ColorMode::Monochrome,
+                perimeter_points_radius: 0.0,
+                perimeter_point_color: Color32::BLACK,
+            },
+            Preset::Educational => TimesCircleStyle {
+                stroke: 1.0,
+                color: Color32::BLACK,
+                background_color: Color32::WHITE,
+                color_mode: ColorMode::Monochrome,
+                perimeter_points_radius: 5.0,
+                perimeter_point_color: Color32::RED,
+            },
+        }
+    }
+    fn label(&self) -> &str {
+        match *self {
+            Preset::Rainbow => "Rainbow",
+            Preset::Pencil => "Pencil",
+            Preset::Educational => "Educational",
+        }
+    }
 }
 
 pub struct TimesCircleApp {
@@ -190,17 +228,32 @@ impl TimesCircleApp {
         ui.horizontal(|ui| {
             ui.label("Presets");
             egui::ComboBox::from_label("")
-                .selected_text(format!("{:?}", self.preset))
+                .selected_text(format!("{:?}", self.preset.label()))
                 .show_ui(ui, |ui| {
                     if ui
                         .selectable_value(&mut self.preset, Preset::Rainbow, "Rainbow")
                         .clicked()
                     {
-                        self.style.color_mode = ColorMode::Length;
-                        self.style.background_color = Color32::BLACK;
+                        self.preset = Preset::Rainbow;
+                        self.style = self.preset.style();
                     };
-                    ui.selectable_value(&mut self.preset, Preset::Pencil, "Pencil");
-                    ui.selectable_value(&mut self.preset, Preset::Educational, "Educational");
+                    if ui
+                        .selectable_value(&mut self.preset, Preset::Pencil, "Pencil")
+                        .clicked()
+                    {
+                        self.preset = Preset::Pencil;
+                        self.style = self.preset.style();
+                    };
+                    if ui
+                        .selectable_value(&mut self.preset, Preset::Educational, "Educational")
+                        .clicked()
+                    {
+                        self.preset = Preset::Educational;
+                        self.style = self.preset.style();
+                        self.num_points = 10;
+                        self.paused = true;
+                        self.multiplier = 1.0;
+                    };
                 });
         });
 
