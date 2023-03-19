@@ -35,13 +35,17 @@ pub struct TimesCircleApp {
     num_points: usize,
     multiplier: f32,
     step_size: f32,
+    style: TimesCircleStyle,
+    preset: Preset,
+}
+
+struct TimesCircleStyle {
     stroke: f32,
     color: Color32,
     background_color: Color32,
     color_mode: ColorMode,
     perimeter_points_radius: f32,
     perimeter_point_color: Color32,
-    preset: Preset,
 }
 
 impl eframe::App for TimesCircleApp {
@@ -78,18 +82,20 @@ impl TimesCircleApp {
             num_points: 5000,
             multiplier: 2.0,
             step_size: 0.01,
-            stroke: 0.02,
-            color: Color32::BLACK,
-            background_color: Color32::BLACK,
-            color_mode: ColorMode::Length("Length".to_string()),
-            perimeter_points_radius: 0.0,
-            perimeter_point_color: Color32::BLACK,
+            style: TimesCircleStyle {
+                stroke: 0.02,
+                color: Color32::BLACK,
+                background_color: Color32::BLACK,
+                color_mode: ColorMode::Length("Length".to_string()),
+                perimeter_points_radius: 0.0,
+                perimeter_point_color: Color32::BLACK,
+            },
             preset: Preset::Rainbow,
         }
     }
 
     fn ui(&mut self, ctx: &egui::Context) {
-        let frame = egui::Frame::default().fill(self.background_color);
+        let frame = egui::Frame::default().fill(self.style.background_color);
         egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
             // Handle mouse controls
             if ui.ui_contains_pointer() || self.first_frame {
@@ -179,8 +185,8 @@ impl TimesCircleApp {
                         .selectable_value(&mut self.preset, Preset::Rainbow, "Rainbow")
                         .clicked()
                     {
-                        self.color_mode = ColorMode::Length("Length".to_string());
-                        self.background_color = Color32::BLACK;
+                        self.style.color_mode = ColorMode::Length("Length".to_string());
+                        self.style.background_color = Color32::BLACK;
                     };
                     ui.selectable_value(&mut self.preset, Preset::Pencil, "Pencil");
                     ui.selectable_value(&mut self.preset, Preset::Educational, "Educational");
@@ -190,13 +196,13 @@ impl TimesCircleApp {
         // Background color picker
         ui.horizontal(|ui| {
             ui.label("Background Color");
-            ui.color_edit_button_srgba(&mut self.background_color);
+            ui.color_edit_button_srgba(&mut self.style.background_color);
         });
 
         // Color mode
         ui.horizontal(|ui| {
             ui.label("Color Mode");
-            let (color_mode_text, next_mode) = match &self.color_mode {
+            let (color_mode_text, next_mode) = match &self.style.color_mode {
                 ColorMode::Monochrome(label) => (label, ColorMode::Length("Length".to_string())),
                 ColorMode::Length(label) => (label, ColorMode::Radial("Radial".to_string())),
                 ColorMode::Radial(label) => {
@@ -204,31 +210,31 @@ impl TimesCircleApp {
                 }
             };
             if ui.selectable_label(false, color_mode_text).clicked() {
-                self.color_mode = next_mode;
+                self.style.color_mode = next_mode;
             };
         });
 
         // Line color picker
         ui.horizontal(|ui| {
-            if matches!(self.color_mode, ColorMode::Monochrome(_)) {
+            if matches!(self.style.color_mode, ColorMode::Monochrome(_)) {
                 ui.set_enabled(true);
             } else {
                 ui.set_enabled(false);
             }
             ui.label("Line Color");
-            ui.color_edit_button_srgba(&mut self.color);
+            ui.color_edit_button_srgba(&mut self.style.color);
         });
 
         // Line width slider
         ui.add(
-            egui::Slider::new(&mut self.stroke, 0.0..=1.0)
+            egui::Slider::new(&mut self.style.stroke, 0.0..=1.0)
                 .text("Line Width")
                 .max_decimals(2),
         );
 
         // Points radius slider
         ui.add(
-            egui::Slider::new(&mut self.perimeter_points_radius, 0.0..=10.0)
+            egui::Slider::new(&mut self.style.perimeter_points_radius, 0.0..=10.0)
                 .text("Point Size")
                 .min_decimals(2)
                 .max_decimals(2),
@@ -236,13 +242,13 @@ impl TimesCircleApp {
 
         // Point color picker
         ui.horizontal(|ui| {
-            if self.perimeter_points_radius == 0.0 {
+            if self.style.perimeter_points_radius == 0.0 {
                 ui.set_enabled(false);
             } else {
                 ui.set_enabled(true);
             }
             ui.label("Point Color");
-            ui.color_edit_button_srgba(&mut self.perimeter_point_color);
+            ui.color_edit_button_srgba(&mut self.style.perimeter_point_color);
         });
     }
 
@@ -273,10 +279,10 @@ impl TimesCircleApp {
             };
 
             // TODO implement other color modes
-            match self.color_mode {
+            match self.style.color_mode {
                 ColorMode::Monochrome(_) => {
                     ui.painter()
-                        .line_segment([p1, p2], Stroke::new(self.stroke, self.color));
+                        .line_segment([p1, p2], Stroke::new(self.style.stroke, self.style.color));
                 }
                 ColorMode::Length(_) => {
                     let line_length = TimesCircleApp::distance_between(points[i], points[j]);
@@ -287,11 +293,11 @@ impl TimesCircleApp {
                         a: 1.0,
                     };
                     ui.painter()
-                        .line_segment([p1, p2], Stroke::new(self.stroke, color));
+                        .line_segment([p1, p2], Stroke::new(self.style.stroke, color));
                 }
                 ColorMode::Radial(_) => ui
                     .painter()
-                    .line_segment([p1, p2], Stroke::new(self.stroke, Color32::DARK_BLUE)),
+                    .line_segment([p1, p2], Stroke::new(self.style.stroke, Color32::DARK_BLUE)),
             }
         }
 
@@ -303,10 +309,10 @@ impl TimesCircleApp {
             },
             radius,
             Color32::TRANSPARENT,
-            Stroke::new(self.stroke, self.color),
+            Stroke::new(self.style.stroke, self.style.color),
         );
 
-        if self.perimeter_points_radius > 0.0 {
+        if self.style.perimeter_points_radius > 0.0 {
             self.draw_perimeter_points(radius, &points, ui);
         }
     }
@@ -320,9 +326,9 @@ impl TimesCircleApp {
             };
             ui.painter().circle(
                 p,
-                self.perimeter_points_radius,
-                self.perimeter_point_color,
-                Stroke::new(self.stroke, self.perimeter_point_color),
+                self.style.perimeter_points_radius,
+                self.style.perimeter_point_color,
+                Stroke::new(self.style.stroke, self.style.perimeter_point_color),
             );
         }
     }
