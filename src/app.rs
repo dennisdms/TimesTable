@@ -14,10 +14,21 @@ use egui::{
 // TODO 9. Remove show points radio - check if point size is 0 to achieve same effect
 
 enum ColorMode {
-    Monochrome(String),
-    Length(String),
-    Radial(String),
+    Monochrome,
+    Length,
+    Radial,
 }
+
+impl ColorMode {
+    fn label(&self) -> &str {
+        match *self {
+            ColorMode::Monochrome => "Monochrome",
+            ColorMode::Length => "Length",
+            ColorMode::Radial => "Radial",
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 enum Preset {
     Rainbow,
@@ -86,7 +97,7 @@ impl TimesCircleApp {
                 stroke: 0.02,
                 color: Color32::BLACK,
                 background_color: Color32::BLACK,
-                color_mode: ColorMode::Length("Length".to_string()),
+                color_mode: ColorMode::Length,
                 perimeter_points_radius: 0.0,
                 perimeter_point_color: Color32::BLACK,
             },
@@ -185,7 +196,7 @@ impl TimesCircleApp {
                         .selectable_value(&mut self.preset, Preset::Rainbow, "Rainbow")
                         .clicked()
                     {
-                        self.style.color_mode = ColorMode::Length("Length".to_string());
+                        self.style.color_mode = ColorMode::Length;
                         self.style.background_color = Color32::BLACK;
                     };
                     ui.selectable_value(&mut self.preset, Preset::Pencil, "Pencil");
@@ -203,20 +214,21 @@ impl TimesCircleApp {
         ui.horizontal(|ui| {
             ui.label("Color Mode");
             let (color_mode_text, next_mode) = match &self.style.color_mode {
-                ColorMode::Monochrome(label) => (label, ColorMode::Length("Length".to_string())),
-                ColorMode::Length(label) => (label, ColorMode::Radial("Radial".to_string())),
-                ColorMode::Radial(label) => {
-                    (label, ColorMode::Monochrome("Monochrome".to_string()))
-                }
+                ColorMode::Monochrome => (self.style.color_mode.label(), ColorMode::Length),
+                ColorMode::Length => (self.style.color_mode.label(), ColorMode::Radial),
+                ColorMode::Radial => (self.style.color_mode.label(), ColorMode::Monochrome),
             };
-            if ui.selectable_label(false, color_mode_text).clicked() {
+            if ui
+                .selectable_label(false, color_mode_text.to_string())
+                .clicked()
+            {
                 self.style.color_mode = next_mode;
             };
         });
 
         // Line color picker
         ui.horizontal(|ui| {
-            if matches!(self.style.color_mode, ColorMode::Monochrome(_)) {
+            if matches!(self.style.color_mode, ColorMode::Monochrome) {
                 ui.set_enabled(true);
             } else {
                 ui.set_enabled(false);
@@ -280,11 +292,11 @@ impl TimesCircleApp {
 
             // TODO implement other color modes
             match self.style.color_mode {
-                ColorMode::Monochrome(_) => {
+                ColorMode::Monochrome => {
                     ui.painter()
                         .line_segment([p1, p2], Stroke::new(self.style.stroke, self.style.color));
                 }
-                ColorMode::Length(_) => {
+                ColorMode::Length => {
                     let line_length = TimesCircleApp::distance_between(points[i], points[j]);
                     let color = color::Hsva {
                         h: line_length / 2.0,
@@ -295,7 +307,7 @@ impl TimesCircleApp {
                     ui.painter()
                         .line_segment([p1, p2], Stroke::new(self.style.stroke, color));
                 }
-                ColorMode::Radial(_) => ui
+                ColorMode::Radial => ui
                     .painter()
                     .line_segment([p1, p2], Stroke::new(self.style.stroke, Color32::DARK_BLUE)),
             }
